@@ -7,11 +7,13 @@ import GoalDisplay from "./goal-display"
 interface MindMapProps {
   initialText?: string
   isDarkMode?: boolean
+  containerHeight?: string
 }
 
 export default function MindMap({
   initialText,
   isDarkMode = false,
+  containerHeight,
 }: MindMapProps) {
   const {
     nodes,
@@ -42,11 +44,14 @@ export default function MindMap({
   return (
     <div
       ref={containerRef}
-      className={`mind-map-canvas relative w-full h-screen overflow-hidden bg-gradient-to-br transition-colors duration-300 ${
+      className={`mind-map-canvas relative w-full overflow-hidden bg-gradient-to-br transition-colors duration-300 ${
+        containerHeight ? "" : "h-screen"
+      } ${
         isDarkMode
           ? "from-slate-950 to-slate-900"
           : "from-slate-50 to-slate-100"
       } ${isPanningBackground ? "cursor-grabbing" : "cursor-grab"}`}
+      style={containerHeight ? { height: containerHeight } : undefined}
       onMouseDown={handleBackgroundMouseDown}
       role="application"
       aria-label="Mind map canvas - drag nodes to move them or pan background"
