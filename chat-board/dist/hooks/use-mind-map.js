@@ -1,44 +1,47 @@
 "use client";
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.useMindMap = useMindMap;
-const react_1 = require("react");
-const colors_1 = require("../lib/colors");
-const positioning_1 = require("../lib/positioning");
-const constants_1 = require("../lib/constants");
-function useMindMap(initialText) {
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { NODE_COLORS, CENTER_COLOR } from "../lib/colors";
+import { calculateNewNodePosition } from "../lib/positioning";
+import { INITIAL_CENTER_NODE } from "../lib/constants";
+export function useMindMap(initialText) {
     // Theme state
-    const [isDarkMode, setIsDarkMode] = (0, react_1.useState)(false);
+    const [isDarkMode, setIsDarkMode] = useState(false);
     // Node state - initialize center node at viewport center
-    const [nodes, setNodes] = (0, react_1.useState)([]);
-    const [isInitialized, setIsInitialized] = (0, react_1.useState)(false);
+    const [nodes, setNodes] = useState([]);
+    const [isInitialized, setIsInitialized] = useState(false);
     // Initialize center node position when container is ready
-    (0, react_1.useEffect)(() => {
+    useEffect(() => {
         if (containerRef.current && !isInitialized) {
             const rect = containerRef.current.getBoundingClientRect();
             setNodes([
-                Object.assign(Object.assign({}, constants_1.INITIAL_CENTER_NODE), { x: rect.width / 2, y: rect.height / 2, content: { text: initialText || "" }, color: colors_1.CENTER_COLOR.light }),
+                {
+                    ...INITIAL_CENTER_NODE,
+                    x: rect.width / 2,
+                    y: rect.height / 2,
+                    content: { text: initialText || "" },
+                    color: CENTER_COLOR.light,
+                },
             ]);
             setIsInitialized(true);
         }
     }, [initialText, isInitialized]);
     // Drag state
-    const [draggingId, setDraggingId] = (0, react_1.useState)(null);
-    const [dragOffset, setDragOffset] = (0, react_1.useState)({ x: 0, y: 0 });
-    const [isPanningBackground, setIsPanningBackground] = (0, react_1.useState)(false);
-    const [backgroundOffset, setBackgroundOffset] = (0, react_1.useState)({ x: 0, y: 0 });
-    const [panStartPos, setPanStartPos] = (0, react_1.useState)({ x: 0, y: 0 });
-    const containerRef = (0, react_1.useRef)(null);
+    const [draggingId, setDraggingId] = useState(null);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const [isPanningBackground, setIsPanningBackground] = useState(false);
+    const [backgroundOffset, setBackgroundOffset] = useState({ x: 0, y: 0 });
+    const [panStartPos, setPanStartPos] = useState({ x: 0, y: 0 });
+    const containerRef = useRef(null);
     // Animation state
-    const [newlyCreatedNodes, setNewlyCreatedNodes] = (0, react_1.useState)(new Set());
-    const [updatedNodes, setUpdatedNodes] = (0, react_1.useState)(new Set());
+    const [newlyCreatedNodes, setNewlyCreatedNodes] = useState(new Set());
+    const [updatedNodes, setUpdatedNodes] = useState(new Set());
     // Theme management
-    (0, react_1.useEffect)(() => {
+    useEffect(() => {
         const savedTheme = localStorage.getItem("theme");
         const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         setIsDarkMode(savedTheme === "dark" || (!savedTheme && prefersDark));
     }, []);
-    (0, react_1.useEffect)(() => {
+    useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add("dark");
             localStorage.setItem("theme", "dark");
@@ -48,9 +51,9 @@ function useMindMap(initialText) {
             localStorage.setItem("theme", "light");
         }
     }, [isDarkMode]);
-    const toggleTheme = (0, react_1.useCallback)(() => setIsDarkMode(!isDarkMode), [isDarkMode]);
+    const toggleTheme = useCallback(() => setIsDarkMode(!isDarkMode), [isDarkMode]);
     // Node management
-    const addNode = (0, react_1.useCallback)((parentId, content) => {
+    const addNode = useCallback((parentId, content) => {
         setNodes((prevNodes) => {
             const parent = prevNodes.find((n) => n.id === parentId);
             if (!parent)
@@ -61,23 +64,23 @@ function useMindMap(initialText) {
                 // This is a first-level child of the center node - assign a unique color
                 const usedColorIndices = new Set(prevNodes
                     .filter((n) => n.parentId === "1")
-                    .map((n) => colors_1.NODE_COLORS.findIndex((c) => n.color.includes(c.light.split(" ")[0].replace("border-", ""))))
+                    .map((n) => NODE_COLORS.findIndex((c) => n.color.includes(c.light.split(" ")[0].replace("border-", ""))))
                     .filter((i) => i !== -1));
                 let colorIndex = 0;
                 while (usedColorIndices.has(colorIndex) &&
-                    colorIndex < colors_1.NODE_COLORS.length) {
+                    colorIndex < NODE_COLORS.length) {
                     colorIndex++;
                 }
-                if (colorIndex >= colors_1.NODE_COLORS.length) {
-                    colorIndex = Math.floor(Math.random() * colors_1.NODE_COLORS.length);
+                if (colorIndex >= NODE_COLORS.length) {
+                    colorIndex = Math.floor(Math.random() * NODE_COLORS.length);
                 }
-                nodeColor = colors_1.NODE_COLORS[colorIndex].light;
+                nodeColor = NODE_COLORS[colorIndex].light;
             }
             else {
                 // This is a deeper level node - inherit parent's color
                 nodeColor = parent.color;
             }
-            const position = (0, positioning_1.calculateNewNodePosition)(parent, siblings, prevNodes);
+            const position = calculateNewNodePosition(parent, siblings, prevNodes);
             const newNode = {
                 id: crypto.randomUUID(),
                 content,
@@ -99,7 +102,7 @@ function useMindMap(initialText) {
             return [...prevNodes, newNode];
         });
     }, []);
-    const deleteNode = (0, react_1.useCallback)((id) => {
+    const deleteNode = useCallback((id) => {
         const toDelete = new Set([id]);
         let changed = true;
         while (changed) {
@@ -115,8 +118,8 @@ function useMindMap(initialText) {
         }
         setNodes((prev) => prev.filter((n) => !toDelete.has(n.id)));
     }, [nodes]);
-    const editNode = (0, react_1.useCallback)((id, content) => {
-        setNodes((prev) => prev.map((n) => (n.id === id ? Object.assign(Object.assign({}, n), { content }) : n)));
+    const editNode = useCallback((id, content) => {
+        setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, content } : n)));
         // Add update animation
         setUpdatedNodes((prev) => new Set([...prev, id]));
         // Remove animation after duration
@@ -128,11 +131,11 @@ function useMindMap(initialText) {
             });
         }, 400);
     }, []);
-    const removeConnection = (0, react_1.useCallback)((childId) => {
-        setNodes((prev) => prev.map((n) => (n.id === childId ? Object.assign(Object.assign({}, n), { parentId: null }) : n)));
+    const removeConnection = useCallback((childId) => {
+        setNodes((prev) => prev.map((n) => (n.id === childId ? { ...n, parentId: null } : n)));
     }, []);
     // Drag and drop
-    const handleMouseDown = (0, react_1.useCallback)((e, nodeId) => {
+    const handleMouseDown = useCallback((e, nodeId) => {
         // Stop propagation to prevent panning
         e.stopPropagation();
         const node = nodes.find((n) => n.id === nodeId);
@@ -149,7 +152,7 @@ function useMindMap(initialText) {
         });
     }, [nodes, backgroundOffset]);
     // Use document-level mouse events for proper panning/dragging
-    (0, react_1.useEffect)(() => {
+    useEffect(() => {
         const handleMouseMove = (e) => {
             if (draggingId) {
                 // Node dragging - convert screen coordinates to canvas coordinates
@@ -170,7 +173,7 @@ function useMindMap(initialText) {
                     });
                     // Only update if no overlap
                     if (!hasOverlap) {
-                        return prev.map((n) => n.id === draggingId ? Object.assign(Object.assign({}, n), { x: newX, y: newY }) : n);
+                        return prev.map((n) => n.id === draggingId ? { ...n, x: newX, y: newY } : n);
                     }
                     return prev;
                 });
@@ -199,15 +202,15 @@ function useMindMap(initialText) {
             };
         }
     }, [draggingId, dragOffset, isPanningBackground, backgroundOffset, panStartPos]);
-    const handleMouseMove = (0, react_1.useCallback)((e) => {
+    const handleMouseMove = useCallback((e) => {
         // This is kept for compatibility but document events handle the actual work
         e.preventDefault();
     }, []);
-    const handleMouseUp = (0, react_1.useCallback)(() => {
+    const handleMouseUp = useCallback(() => {
         setDraggingId(null);
         setIsPanningBackground(false);
     }, []);
-    const handleBackgroundMouseDown = (0, react_1.useCallback)((e) => {
+    const handleBackgroundMouseDown = useCallback((e) => {
         // Start panning if clicking on background (not on a node or its children)
         const target = e.target;
         // Don't pan if clicking on a node or its children
@@ -229,7 +232,7 @@ function useMindMap(initialText) {
         setPanStartPos({ x: e.clientX, y: e.clientY });
     }, []);
     // Memoized connections for performance
-    const connections = (0, react_1.useMemo)(() => {
+    const connections = useMemo(() => {
         return nodes
             .map((node) => {
             const parent = nodes.find((n) => n.id === node.parentId);
@@ -242,10 +245,10 @@ function useMindMap(initialText) {
             const y2 = node.y;
             const midX = (x1 + x2) / 2;
             const midY = (y1 + y2) / 2;
-            const colorData = colors_1.NODE_COLORS.find((c) => node.color.includes(c.light.split(" ")[0].replace("border-", "")));
+            const colorData = NODE_COLORS.find((c) => node.color.includes(c.light.split(" ")[0].replace("border-", "")));
             const strokeColor = isDarkMode
-                ? (colorData === null || colorData === void 0 ? void 0 : colorData.darkConnection) || colors_1.CENTER_COLOR.darkConnection
-                : (colorData === null || colorData === void 0 ? void 0 : colorData.connection) || colors_1.CENTER_COLOR.connection;
+                ? colorData?.darkConnection || CENTER_COLOR.darkConnection
+                : colorData?.connection || CENTER_COLOR.connection;
             return {
                 id: node.id,
                 path: `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`,

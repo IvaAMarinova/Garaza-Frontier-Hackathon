@@ -1,7 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.calculateNewNodePosition = calculateNewNodePosition;
-exports.getNodeFamily = getNodeFamily;
 // Node dimensions in pixels
 const NODE_WIDTH = 180; // Node width in pixels
 const NODE_HEIGHT = 120; // Node height in pixels
@@ -20,7 +16,7 @@ function getTopicRoot(node, allNodes) {
     }
     // If the node's parent is the center node, then this node IS the topic root
     const parent = allNodes.find((n) => n.id === node.parentId);
-    if ((parent === null || parent === void 0 ? void 0 : parent.parentId) === null) {
+    if (parent?.parentId === null) {
         return node;
     }
     // Otherwise, traverse up to find the first-level ancestor
@@ -130,7 +126,7 @@ function findNonOverlappingPosition(center, excludeNodeId, allNodes, minDistance
     }
     return null;
 }
-function calculateNewNodePosition(parent, siblings, allNodes) {
+export function calculateNewNodePosition(parent, siblings, allNodes) {
     // Check if this is a first-level child (direct child of center node)
     const isFirstLevel = parent.parentId === null;
     // Get the topic root for the new node
@@ -355,7 +351,7 @@ function calculateNewNodePosition(parent, siblings, allNodes) {
         return fallback;
     }
 }
-function getNodeFamily(nodeId, nodes) {
+export function getNodeFamily(nodeId, nodes) {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node)
         return [];

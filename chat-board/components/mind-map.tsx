@@ -1,7 +1,7 @@
 "use client"
 
 
-import { useMindMap } from "@/hooks/use-mind-map"
+import { useMindMap } from "../hooks/use-mind-map"
 import { NodeCard } from "./node-card"
 
 interface MindMapProps {

@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.CENTER_COLOR = exports.NODE_COLORS = void 0;
-exports.NODE_COLORS = [
+export const NODE_COLORS = [
     {
         light: "border-red-300 bg-red-50/80 text-red-900 dark:border-red-700 dark:bg-red-950/50 dark:text-red-100",
         connection: "#fca5a5",
@@ -43,7 +40,7 @@ exports.NODE_COLORS = [
         darkConnection: "#9a3412",
     },
 ];
-exports.CENTER_COLOR = {
+export const CENTER_COLOR = {
     light: "border-slate-400 bg-slate-100/90 text-slate-900 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-100",
     connection: "#cbd5e1",
     darkConnection: "#475569",
