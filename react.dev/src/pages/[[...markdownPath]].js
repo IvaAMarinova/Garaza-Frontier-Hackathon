@@ -20,8 +20,7 @@ import sidebarBlog from '../sidebarBlog.json';
 import {MDXComponents} from 'components/MDX/MDXComponents';
 import compileMDX from 'utils/compileMDX';
 import {generateRssFeed} from '../utils/rss';
-import { MindMap } from '@garaza-frontier/chat-board/chat-board';
-import '@garaza-frontier/chat-board/chat-board/styles.css';
+import ChatBoardWrapper from 'components/ChatBoardWrapper';
 
 export default function Layout({content, toc, meta, languages}) {
   const router = useRouter();
@@ -53,14 +52,10 @@ export default function Layout({content, toc, meta, languages}) {
       break;
   }
   
-  // Special case for tutorial page - render mind map within the page layout
-  // Wrap in container to preserve original styles
+  // Special case for tutorial page - render chat board with chat-first behavior
+  // Shows ChatInput first, then MindMap after user submits
   const pageContent = path === '/learn/tutorial-tic-tac-toe' 
-    ? (
-        <div className="chat-board-container" style={{ isolation: 'isolate' }}>
-          <MindMap initialText="React Tutorial Mind Map" />
-        </div>
-      )
+    ? <ChatBoardWrapper />
     : parsedContent;
   
   return (

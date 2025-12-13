@@ -10,6 +10,10 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./chat-board": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
     "./components/mind-map": {
       "import": "./dist/components/mind-map.js",
       "types": "./dist/components/mind-map.d.ts"
