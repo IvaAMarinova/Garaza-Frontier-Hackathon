@@ -1,7 +1,6 @@
 const API_BASE_URL = 'http://localhost:8000/v1/chat';
 export async function createSession() {
     const url = `${API_BASE_URL}/sessions`;
-    console.log('Creating session at', url);
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -63,8 +62,11 @@ export async function getConceptGraph(sessionId) {
     }
     return response.json();
 }
-export async function getGoal(sessionId) {
-    const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/goal`, {
+export async function getGoal(sessionId, createIfMissing = false) {
+    const url = createIfMissing
+        ? `${API_BASE_URL}/sessions/${sessionId}/goal?create_if_missing=true`
+        : `${API_BASE_URL}/sessions/${sessionId}/goal`;
+    const response = await fetch(url, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -75,34 +77,67 @@ export async function getGoal(sessionId) {
     }
     return response.json();
 }
+export async function createGoal(sessionId, request = {}) {
+    const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/goal`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to create goal: ${response.statusText}`);
+    }
+    return response.json();
+}
+export async function expandConcept(sessionId, conceptId, request) {
+    const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/concept-graph/${conceptId}/expand`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to expand concept: ${response.statusText}`);
+    }
+    return response.json();
+}
+export async function recordGoalInteractions(sessionId, request) {
+    const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/goal/interactions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to record goal interactions: ${response.statusText}`);
+    }
+    return response.json();
+}
 export async function initializeTicTacToeSession(prompt) {
-    try {
-        // Create a new session
-        const { session_id } = await createSession();
-        // Use provided prompt or default tic tac toe prompt
-        const ticTacToePrompt = prompt || `Let's create a tic tac toe game. I want to understand the game mechanics, rules, strategies, and implementation details. 
-    
-    Key concepts to explore:
-    - Game rules and winning conditions
-    - Player strategies (offensive and defensive)
-    - Game state representation
-    - AI algorithms for computer players
-    - User interface design
-    - Game flow and turn management`;
-        await generateContent(session_id, {
-            content: ticTacToePrompt,
-            system_prompt: "You are a helpful assistant that explains game concepts and programming topics in detail.",
-            persist: true,
-            model: "gpt-4o-mini"
-        });
-        // Build the concept graph
-        const conceptGraph = await buildConceptGraph(session_id, 'full');
-        return { sessionId: session_id, conceptGraph };
-    }
-    catch (error) {
-        console.error('Failed to initialize tic tac toe session:', error);
-        throw error;
-    }
+    // Create a new session
+    const { session_id } = await createSession();
+    // Use provided prompt or default tic tac toe prompt
+    const ticTacToePrompt = prompt || `Let's create a tic tac toe game. I want to understand the game mechanics, rules, strategies, and implementation details. 
+  
+  Key concepts to explore:
+  - Game rules and winning conditions
+  - Player strategies (offensive and defensive)
+  - Game state representation
+  - AI algorithms for computer players
+  - User interface design
+  - Game flow and turn management`;
+    await generateContent(session_id, {
+        content: ticTacToePrompt,
+        system_prompt: "You are a helpful assistant that explains game concepts and programming topics in detail.",
+        persist: true,
+        model: "gpt-4o-mini"
+    });
+    // Build the concept graph
+    const conceptGraph = await buildConceptGraph(session_id, 'full');
+    return { sessionId: session_id, conceptGraph };
 }
 export function convertConceptGraphToNodes(conceptGraph) {
     const { concepts, edges } = conceptGraph;

@@ -73,12 +73,36 @@ export interface GoalResponse {
     focus: Record<string, FocusModel>;
     meta: GoalMetaModel;
 }
+export interface SimpleGoalResponse {
+    goal: string;
+}
+export interface ConceptExpandRequest {
+    expansion: string;
+    weight?: number;
+    strength?: number;
+    auto_refine?: boolean;
+}
+export interface CreateGoalRequest {
+    force?: boolean;
+}
+export interface GoalInteractionEvent {
+    concept_id: string;
+    event: 'expand' | 'revisit';
+    strength: number;
+}
+export interface GoalInteractionsRequest {
+    events: GoalInteractionEvent[];
+    auto_refine?: boolean;
+}
 export declare function createSession(): Promise<CreateSessionResponse>;
 export declare function getSessionState(sessionId: string): Promise<SessionState>;
 export declare function generateContent(sessionId: string, request: GenerateRequest): Promise<GenerateResponse>;
 export declare function buildConceptGraph(sessionId: string, mode?: 'full' | 'incremental'): Promise<ConceptGraphResponse>;
 export declare function getConceptGraph(sessionId: string): Promise<ConceptGraphResponse>;
-export declare function getGoal(sessionId: string): Promise<GoalResponse>;
+export declare function getGoal(sessionId: string, createIfMissing?: boolean): Promise<GoalResponse>;
+export declare function createGoal(sessionId: string, request?: CreateGoalRequest): Promise<GoalResponse>;
+export declare function expandConcept(sessionId: string, conceptId: string, request: ConceptExpandRequest): Promise<unknown>;
+export declare function recordGoalInteractions(sessionId: string, request: GoalInteractionsRequest): Promise<unknown>;
 export declare function initializeTicTacToeSession(prompt?: string): Promise<{
     sessionId: string;
     conceptGraph: ConceptGraphResponse;

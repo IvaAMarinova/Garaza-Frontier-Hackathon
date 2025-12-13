@@ -6,9 +6,10 @@ import { Send } from "lucide-react"
 interface ChatInputProps {
   onSend?: (message: string) => void
   isCentered?: boolean
+  isDarkMode?: boolean
 }
 
-export default function ChatInput({ onSend, isCentered = false }: ChatInputProps) {
+export default function ChatInput({ onSend, isCentered = false, isDarkMode: _isDarkMode = false }: ChatInputProps) {
   const [message, setMessage] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 

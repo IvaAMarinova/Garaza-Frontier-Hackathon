@@ -1,6 +1,5 @@
 // Constants for node sizing
 const MIN_NODE_WIDTH = 60;
-const MIN_NODE_HEIGHT = 80;
 const BASE_PADDING = 16; // px-2 py-2 = 8px * 2
 const TEXT_LINE_HEIGHT = 1.5; // leading-relaxed
 const CHAR_WIDTH_ESTIMATE = 7; // Approximate character width in pixels for text-sm

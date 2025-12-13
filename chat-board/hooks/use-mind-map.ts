@@ -7,9 +7,7 @@ import { calculateNewNodePosition, adjustNodesForNewNode, validateAndFixOverlaps
 import { INITIAL_CENTER_NODE } from "../lib/constants"
 import { initializeTicTacToeSession, convertConceptGraphToNodes, getGoal } from "../lib/api"
 import type { Goal } from "../lib/types"
-export function useMindMap(initialText?: string) {
-  // Theme state
-  const [isDarkMode, setIsDarkMode] = useState(false)
+export function useMindMap(initialText?: string, isDarkMode: boolean = false) {
 
   // Node state - initialize center node at viewport center
   const [nodes, setNodes] = useState<Node[]>([])
@@ -25,7 +23,6 @@ export function useMindMap(initialText?: string) {
     if (containerRef.current && !isInitialized && !initializationInProgress.current) {
       initializationInProgress.current = true
       const rect = containerRef.current.getBoundingClientRect()
-      console.log('Container rect:', rect)
       
       const initializeWithBackend = async () => {
         setIsLoading(true)
@@ -39,8 +36,8 @@ export function useMindMap(initialText?: string) {
           try {
             const goalResponse = await getGoal(newSessionId)
             setGoal(goalResponse)
-          } catch (error) {
-            console.error('Failed to fetch goal:', error)
+          } catch {
+            // Goal fetch failed, continue without goal
           }
           
           const { centerNode, childNodes } = convertConceptGraphToNodes(conceptGraph)
@@ -101,9 +98,7 @@ export function useMindMap(initialText?: string) {
               }, 500)
             }, (index + 1) * 300) // 300ms delay between each node
           })
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error('Failed to initialize with backend:', error)
+        } catch {
           // Fallback to default initialization
           setNodes([
             {
@@ -138,10 +133,6 @@ export function useMindMap(initialText?: string) {
   const MIN_ZOOM = 0.1
   const MAX_ZOOM = 3
   
-  // Debug zoom changes
-  useEffect(() => {
-    console.log('Zoom level changed to:', zoomLevel)
-  }, [zoomLevel])
 
   // Animation state
   const [newlyCreatedNodes, setNewlyCreatedNodes] = useState<Set<string>>(
@@ -149,34 +140,8 @@ export function useMindMap(initialText?: string) {
   )
   const [updatedNodes, setUpdatedNodes] = useState<Set<string>>(new Set())
 
-  // Theme management
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme")
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches
-    setIsDarkMode(savedTheme === "dark" || (!savedTheme && prefersDark))
-  }, [])
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark")
-      localStorage.setItem("theme", "dark")
-    } else {
-      document.documentElement.classList.remove("dark")
-      localStorage.setItem("theme", "light")
-    }
-  }, [isDarkMode])
-
-  const toggleTheme = useCallback(
-    () => setIsDarkMode(!isDarkMode),
-    [isDarkMode]
-  )
-
   const handleFinish = useCallback(() => {
     // Handle finish action - could navigate away, show completion modal, etc.
-    console.log('Learning session finished!')
-    // For now, just log. In a real app, this might navigate to a completion page
   }, [])
 
   // Node management
@@ -254,8 +219,8 @@ export function useMindMap(initialText?: string) {
       if (sessionId) {
         getGoal(sessionId).then(goalResponse => {
           setGoal(goalResponse)
-        }).catch(error => {
-          console.error('Failed to fetch updated goal:', error)
+        }).catch(() => {
+          // Goal update failed, continue without updated goal
         })
       }
 
@@ -567,7 +532,6 @@ export function useMindMap(initialText?: string) {
 
   return {
     // State
-    isDarkMode,
     nodes,
     draggingId,
     containerRef,
@@ -582,7 +546,6 @@ export function useMindMap(initialText?: string) {
     goal,
 
     // Actions
-    toggleTheme,
     handleFinish,
     addNode,
     deleteNode,

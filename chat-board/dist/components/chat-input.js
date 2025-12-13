@@ -2,7 +2,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useRef, useEffect } from "react";
 import { Send } from "lucide-react";
-export default function ChatInput({ onSend, isCentered = false }) {
+export default function ChatInput({ onSend, isCentered = false, isDarkMode: _isDarkMode = false }) {
     const [message, setMessage] = useState("");
     const textareaRef = useRef(null);
     // Auto-resize textarea

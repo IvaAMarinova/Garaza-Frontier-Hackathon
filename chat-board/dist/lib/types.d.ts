@@ -13,6 +13,7 @@ export interface Node {
     y: number;
     color: string;
     parentId: string | null;
+    conceptId?: string;
 }
 export interface Position {
     x: number;
@@ -28,6 +29,29 @@ export interface NodeBounds {
     height: number;
 }
 export interface Goal {
-    text: string;
+    goal_statement: string;
+}
+export interface FullGoal {
+    id: string;
+    goal_statement: string;
+    answer_markdown: string;
+    overlays: Array<{
+        id: string;
+        concept_id: string;
+        depth: number;
+        content_markdown: string;
+        doc_links: string[];
+    }>;
+    focus: Record<string, {
+        interest_score: number;
+        confusion_score: number;
+        mastery_score: number;
+        unknownness: number;
+    }>;
+    meta: {
+        global_answer_depth: number;
+        last_updated_ts: number;
+        last_refined_concepts: string[];
+    };
 }
 //# sourceMappingURL=types.d.ts.map

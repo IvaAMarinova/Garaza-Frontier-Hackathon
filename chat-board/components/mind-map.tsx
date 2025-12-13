@@ -7,9 +7,10 @@ import GoalDisplay from "./goal-display"
 
 interface MindMapProps {
   initialText?: string
+  isDarkMode?: boolean
 }
 
-export default function MindMap({ initialText }: MindMapProps) {
+export default function MindMap({ initialText, isDarkMode = false }: MindMapProps) {
   const {
     nodes,
     draggingId,
@@ -34,12 +35,16 @@ export default function MindMap({ initialText }: MindMapProps) {
     handleFinish,
     handleMouseDown,
     handleBackgroundMouseDown,
-  } = useMindMap(initialText)
+  } = useMindMap(initialText, isDarkMode)
 
   return (
     <div
       ref={containerRef}
-      className={`mind-map-canvas relative w-full h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300 ${isPanningBackground ? "cursor-grabbing" : "cursor-grab"}`}
+      className={`mind-map-canvas relative w-full h-screen overflow-hidden bg-gradient-to-br transition-colors duration-300 ${
+        isDarkMode 
+          ? "from-slate-950 to-slate-900" 
+          : "from-slate-50 to-slate-100"
+      } ${isPanningBackground ? "cursor-grabbing" : "cursor-grab"}`}
       onMouseDown={handleBackgroundMouseDown}
       role="application"
       aria-label="Mind map canvas - drag nodes to move them or pan background"
@@ -47,21 +52,25 @@ export default function MindMap({ initialText }: MindMapProps) {
       {/* Loading indicator */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-lg">
+          <div className={`rounded-lg p-6 shadow-lg ${isDarkMode ? "bg-slate-800" : "bg-white"}`}>
             <div className="flex items-center space-x-3">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="text-slate-700 dark:text-slate-300">Loading tic tac toe concepts...</span>
+              <span className={isDarkMode ? "text-slate-300" : "text-slate-700"}>Loading tic tac toe concepts...</span>
             </div>
           </div>
         </div>
       )}
 
       {/* Goal Display */}
-      <GoalDisplay goal={goal} onFinish={handleFinish} />
+      <GoalDisplay goal={goal} onFinish={handleFinish} isDarkMode={isDarkMode} />
 
       {/* Session info */}
       {sessionId && !isLoading && (
-        <div className="absolute top-4 left-4 bg-white/90 dark:bg-slate-800/90 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-slate-400 backdrop-blur-sm">
+        <div className={`absolute top-4 left-4 rounded-lg px-3 py-2 text-xs backdrop-blur-sm ${
+          isDarkMode 
+            ? "bg-slate-800/90 text-slate-400" 
+            : "bg-white/90 text-slate-600"
+        }`}>
           Session: {sessionId.slice(0, 8)}...
         </div>
       )}
@@ -70,7 +79,11 @@ export default function MindMap({ initialText }: MindMapProps) {
       <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
         <button
           onClick={zoomIn}
-          className="w-10 h-10 bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100"
+          className={`w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center ${
+            isDarkMode
+              ? "bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-slate-100"
+              : "bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900"
+          }`}
           aria-label="Zoom in"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -83,7 +96,11 @@ export default function MindMap({ initialText }: MindMapProps) {
         
         <button
           onClick={zoomOut}
-          className="w-10 h-10 bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100"
+          className={`w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center ${
+            isDarkMode
+              ? "bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-slate-100"
+              : "bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900"
+          }`}
           aria-label="Zoom out"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -95,7 +112,11 @@ export default function MindMap({ initialText }: MindMapProps) {
         
         <button
           onClick={resetZoom}
-          className="w-10 h-10 bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100"
+          className={`w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center ${
+            isDarkMode
+              ? "bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-slate-100"
+              : "bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900"
+          }`}
           aria-label="Reset zoom"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -107,7 +128,11 @@ export default function MindMap({ initialText }: MindMapProps) {
         </button>
         
         {/* Zoom level indicator */}
-        <div className="bg-white/90 dark:bg-slate-800/90 rounded-lg px-2 py-1 text-xs text-slate-600 dark:text-slate-400 backdrop-blur-sm text-center">
+        <div className={`rounded-lg px-2 py-1 text-xs backdrop-blur-sm text-center ${
+          isDarkMode 
+            ? "bg-slate-800/90 text-slate-400" 
+            : "bg-white/90 text-slate-600"
+        }`}>
           {Math.round(zoomLevel * 100)}%
         </div>
       </div>
@@ -195,6 +220,9 @@ export default function MindMap({ initialText }: MindMapProps) {
                 isCenter={node.parentId === null}
                 isNewlyCreated={isNewlyCreated}
                 isUpdated={isUpdated}
+                sessionId={sessionId || undefined}
+                conceptId={(node as unknown as { conceptId?: string }).conceptId}
+                isDarkMode={isDarkMode}
               />
             </div>
           )
