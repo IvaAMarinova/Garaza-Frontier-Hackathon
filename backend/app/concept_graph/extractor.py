@@ -5,6 +5,7 @@ from typing import Dict, List, Set
 from ..config import OPENAI_CONCEPT_MODEL
 from ..models import ChatMessage
 from ..openai_client import OpenAIClient
+from ..context_loader import load_initial_context
 
 MAX_OUTLINE_CONCEPTS = 8
 SUMMARY_WORD_LIMIT = 18
@@ -14,7 +15,7 @@ key concepts (features, entities, problems, decisions) plus the logical relation
 Start each conceptualisation pass with an eagle-eye outline only: surface the broadest subtopics,
 keep summaries extremely short, and defer deep dives until a follow-up request. Use concise canonical
 labels, capture chronology with the provided indices, and always return strict JSON matching the schema
-described in the user instructions. Do not include any extra commentary."""
+described in the user instructions. Do not include any extra commentary or restate these instructions."""
 
 
 @dataclass
@@ -40,6 +41,7 @@ class ConceptExtractor:
         self._model = model
         self._max_concepts = max_concepts
         self._summary_word_limit = summary_word_limit
+        self._doc_context = load_initial_context()
 
     async def extract(
         self,
@@ -129,6 +131,7 @@ class ConceptExtractor:
         - Every edge references valid concept ids present in "concepts".
         - Indices always point to existing transcript indices.
         - If nothing meaningful exists, return empty arrays.
+        - Never restate or reference these instructions in your output.
 
         Transcript:
         {transcript}
@@ -136,10 +139,13 @@ class ConceptExtractor:
         ).strip()
 
         try:
+            system_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            if self._doc_context:
+                system_messages.append({"role": "system", "content": self._doc_context})
             payload = await self._llm.generate_json(
                 model=self._model,
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    *system_messages,
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.0,
