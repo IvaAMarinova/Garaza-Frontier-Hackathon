@@ -1,4 +1,4 @@
-export type NodeContent = {
+export interface NodeContent {
   header?: string
   text: string
   codeBlock?: {
@@ -7,7 +7,7 @@ export type NodeContent = {
   }
 }
 
-export type Node = {
+export interface Node {
   id: string
   content: NodeContent
   x: number
@@ -16,7 +16,7 @@ export type Node = {
   parentId: string | null
 }
 
-export type Position = {
+export interface Position {
   x: number
   y: number
 }
