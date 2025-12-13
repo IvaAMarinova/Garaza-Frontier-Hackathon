@@ -17,6 +17,8 @@ export function useMindMap(initialText) {
     useEffect(() => {
         if (containerRef.current && !isInitialized) {
             const rect = containerRef.current.getBoundingClientRect();
+            console.log('Container rect:', rect);
+            console.log('Initial zoom level:', zoomLevel);
             const initializeWithBackend = async () => {
                 setIsLoading(true);
                 try {
@@ -112,6 +114,10 @@ export function useMindMap(initialText) {
     const [zoomLevel, setZoomLevel] = useState(1);
     const MIN_ZOOM = 0.1;
     const MAX_ZOOM = 3;
+    // Debug zoom changes
+    useEffect(() => {
+        console.log('Zoom level changed to:', zoomLevel);
+    }, [zoomLevel]);
     // Animation state
     const [newlyCreatedNodes, setNewlyCreatedNodes] = useState(new Set());
     const [updatedNodes, setUpdatedNodes] = useState(new Set());
