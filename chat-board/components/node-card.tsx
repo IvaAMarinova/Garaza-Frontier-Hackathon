@@ -14,32 +14,24 @@ interface NodeCardProps {
   onMouseDown: (e: React.MouseEvent, id: string) => void
   isDragging: boolean
   isCenter: boolean
+  isNewlyCreated?: boolean
+  isUpdated?: boolean
 }
 
 export function NodeCard({
   node,
   onAddChild,
-  onDelete,
-  onEdit,
-  onRemoveConnection,
+  onDelete: _onDelete,
+  onEdit: _onEdit,
+  onRemoveConnection: _onRemoveConnection,
   onMouseDown,
   isDragging,
   isCenter,
+  isNewlyCreated = false,
+  isUpdated = false,
 }: NodeCardProps) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editContent, setEditContent] = useState<NodeContent>(node.content)
   const [showTextInput, setShowTextInput] = useState(false)
   const [inputText, setInputText] = useState("")
-
-  const saveEdit = () => {
-    onEdit(node.id, editContent)
-    setIsEditing(false)
-  }
-
-  const startEditing = () => {
-    setEditContent(node.content)
-    setIsEditing(true)
-  }
 
   const handleTextSubmit = () => {
     if (inputText.trim()) {
@@ -67,12 +59,12 @@ export function NodeCard({
         isCenter
           ? "px-6 py-5 font-semibold text-lg min-w-[200px]"
           : "min-w-[180px]"
-      } ${isDragging ? "cursor-grabbing shadow-2xl scale-105 z-50" : "cursor-grab"}`}
+      } ${isDragging ? "cursor-grabbing shadow-2xl scale-105 z-50" : "cursor-grab"} ${
+        isUpdated ? "ring-1 ring-green-400/30" : ""
+      }`}
       onMouseDown={(e) => onMouseDown(e, node.id)}
       aria-label={`Draggable node: ${node.content.header || node.content.text}`}
     >
-
-
       <div
         className="space-y-2"
         onMouseDown={(e) => e.stopPropagation()}
@@ -95,7 +87,15 @@ export function NodeCard({
         )}
       </div>
 
-      <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+      <div
+        className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200"
+        style={{
+          opacity: isNewlyCreated ? 0 : undefined,
+          animation: isNewlyCreated
+            ? "fadeInConnection 0.5s ease-out forwards"
+            : "none",
+        }}
+      >
         <button
           type="button"
           onClick={(e) => {
@@ -103,10 +103,10 @@ export function NodeCard({
             onAddChild(node.id, { text: "New Node" })
           }}
           onMouseDown={(e) => e.stopPropagation()}
-          className="p-1 bg-white dark:bg-slate-700 rounded-full shadow-md hover:shadow-lg hover:scale-110 transition-all border border-slate-200 dark:border-slate-600"
+          className="p-1 bg-white dark:bg-slate-700 rounded-full shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 border border-slate-200 dark:border-slate-600"
           title="Add child node"
         >
-          <Plus className="w-3 h-3 text-slate-600 dark:text-slate-300" />
+          <Plus className="w-3 h-3 text-slate-600 dark:text-slate-300 transition-colors" />
         </button>
         <button
           type="button"

@@ -17,7 +17,6 @@ export default function ChatInput() {
 
   const handleSend = () => {
     if (message.trim()) {
-      console.log("Sending:", message)
       setMessage("")
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto"

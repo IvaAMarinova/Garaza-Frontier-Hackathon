@@ -5,18 +5,16 @@ import type { Node, NodeContent } from "@/lib/types"
 import { NODE_COLORS, CENTER_COLOR } from "@/lib/colors"
 import { calculateNewNodePosition } from "@/lib/positioning"
 import { LAYOUT_CONSTANTS, INITIAL_CENTER_NODE } from "@/lib/constants"
-import { randomUUID } from "crypto"
-
 export function useMindMap(initialText?: string) {
   // Theme state
   const [isDarkMode, setIsDarkMode] = useState(false)
 
   // Node state
   const [nodes, setNodes] = useState<Node[]>([
-    { 
-      ...INITIAL_CENTER_NODE, 
+    {
+      ...INITIAL_CENTER_NODE,
       content: { text: initialText || "" },
-      color: CENTER_COLOR.light 
+      color: CENTER_COLOR.light,
     },
   ])
 
@@ -27,6 +25,12 @@ export function useMindMap(initialText?: string) {
   const [backgroundOffset, setBackgroundOffset] = useState({ x: 0, y: 0 })
   const [panStartPos, setPanStartPos] = useState({ x: 0, y: 0 })
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Animation state
+  const [newlyCreatedNodes, setNewlyCreatedNodes] = useState<Set<string>>(
+    new Set()
+  )
+  const [updatedNodes, setUpdatedNodes] = useState<Set<string>>(new Set())
 
   // Theme management
   useEffect(() => {
@@ -53,61 +57,68 @@ export function useMindMap(initialText?: string) {
   )
 
   // Node management
-  const addNode = useCallback(
-    (parentId: string, content: NodeContent) => {
-      setNodes((prevNodes) => {
-        const parent = prevNodes.find((n) => n.id === parentId)
-        if (!parent) return prevNodes
+  const addNode = useCallback((parentId: string, content: NodeContent) => {
+    setNodes((prevNodes) => {
+      const parent = prevNodes.find((n) => n.id === parentId)
+      if (!parent) return prevNodes
 
-        const siblings = prevNodes.filter((n) => n.parentId === parentId)
-        let nodeColor: string
+      const siblings = prevNodes.filter((n) => n.parentId === parentId)
+      let nodeColor: string
 
-        if (parent.parentId === null) {
-          // This is a first-level child of the center node - assign a unique color
-          const usedColorIndices = new Set(
-            prevNodes
-              .filter((n) => n.parentId === "1")
-              .map((n) =>
-                NODE_COLORS.findIndex((c) =>
-                  n.color.includes(c.light.split(" ")[0].replace("border-", ""))
-                )
+      if (parent.parentId === null) {
+        // This is a first-level child of the center node - assign a unique color
+        const usedColorIndices = new Set(
+          prevNodes
+            .filter((n) => n.parentId === "1")
+            .map((n) =>
+              NODE_COLORS.findIndex((c) =>
+                n.color.includes(c.light.split(" ")[0].replace("border-", ""))
               )
-              .filter((i) => i !== -1)
-          )
+            )
+            .filter((i) => i !== -1)
+        )
 
-          let colorIndex = 0
-          while (
-            usedColorIndices.has(colorIndex) &&
-            colorIndex < NODE_COLORS.length
-          ) {
-            colorIndex++
-          }
-          if (colorIndex >= NODE_COLORS.length) {
-            colorIndex = Math.floor(Math.random() * NODE_COLORS.length)
-          }
-          nodeColor = NODE_COLORS[colorIndex].light
-        } else {
-          // This is a deeper level node - inherit parent's color
-          nodeColor = parent.color
+        let colorIndex = 0
+        while (
+          usedColorIndices.has(colorIndex) &&
+          colorIndex < NODE_COLORS.length
+        ) {
+          colorIndex++
         }
-
-        console.log(parent, siblings, prevNodes)
-
-        const position = calculateNewNodePosition(parent, siblings, prevNodes)
-        const newNode: Node = {
-          id: crypto.randomUUID(),
-          content,
-          x: position.x,
-          y: position.y,
-          color: nodeColor,
-          parentId,
+        if (colorIndex >= NODE_COLORS.length) {
+          colorIndex = Math.floor(Math.random() * NODE_COLORS.length)
         }
+        nodeColor = NODE_COLORS[colorIndex].light
+      } else {
+        // This is a deeper level node - inherit parent's color
+        nodeColor = parent.color
+      }
 
-        return [...prevNodes, newNode]
-      })
-    },
-    []
-  )
+      const position = calculateNewNodePosition(parent, siblings, prevNodes)
+      const newNode: Node = {
+        id: crypto.randomUUID(),
+        content,
+        x: position.x,
+        y: position.y,
+        color: nodeColor,
+        parentId,
+      }
+
+      // Add creation animation
+      setNewlyCreatedNodes((prev) => new Set([...prev, newNode.id]))
+
+      // Remove animation after duration
+      setTimeout(() => {
+        setNewlyCreatedNodes((prev) => {
+          const updated = new Set(prev)
+          updated.delete(newNode.id)
+          return updated
+        })
+      }, 300)
+
+      return [...prevNodes, newNode]
+    })
+  }, [])
 
   const deleteNode = useCallback(
     (id: string) => {
@@ -135,6 +146,18 @@ export function useMindMap(initialText?: string) {
 
   const editNode = useCallback((id: string, content: NodeContent) => {
     setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, content } : n)))
+
+    // Add update animation
+    setUpdatedNodes((prev) => new Set([...prev, id]))
+
+    // Remove animation after duration
+    setTimeout(() => {
+      setUpdatedNodes((prev) => {
+        const updated = new Set(prev)
+        updated.delete(id)
+        return updated
+      })
+    }, 400)
   }, [])
 
   const removeConnection = useCallback((childId: string) => {
@@ -218,7 +241,10 @@ export function useMindMap(initialText?: string) {
   }, [])
 
   // State for container dimensions
-  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 })
+  const [containerDimensions, setContainerDimensions] = useState({
+    width: 0,
+    height: 0,
+  })
 
   // Update container dimensions on resize
   useEffect(() => {
@@ -230,14 +256,15 @@ export function useMindMap(initialText?: string) {
     }
 
     updateDimensions()
-    window.addEventListener('resize', updateDimensions)
-    return () => window.removeEventListener('resize', updateDimensions)
+    window.addEventListener("resize", updateDimensions)
+    return () => window.removeEventListener("resize", updateDimensions)
   }, [])
 
   // Memoized connections for performance
   const connections = useMemo(() => {
-    if (containerDimensions.width === 0 || containerDimensions.height === 0) return []
-    
+    if (containerDimensions.width === 0 || containerDimensions.height === 0)
+      return []
+
     return nodes
       .map((node) => {
         const parent = nodes.find((n) => n.id === node.parentId)
@@ -275,6 +302,8 @@ export function useMindMap(initialText?: string) {
     connections,
     backgroundOffset,
     isPanningBackground,
+    newlyCreatedNodes,
+    updatedNodes,
 
     // Actions
     toggleTheme,
@@ -282,6 +311,7 @@ export function useMindMap(initialText?: string) {
     deleteNode,
     editNode,
     removeConnection,
+
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,

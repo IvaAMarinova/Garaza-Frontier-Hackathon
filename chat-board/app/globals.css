@@ -123,3 +123,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Mind Map Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes fadeInConnection {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
