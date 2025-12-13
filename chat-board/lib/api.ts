@@ -1,6 +1,6 @@
 import type { NodeContent } from './types'
 
-const API_BASE_URL = 'http://0.0.0.0:8000/v1/chat'
+const API_BASE_URL = 'http://localhost:8000/v1/chat'
 
 export interface CreateSessionResponse {
   session_id: string
