@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { NODE_COLORS, CENTER_COLOR } from "../lib/colors";
-import { calculateNewNodePosition, adjustNodesForNewNode, validateAndFixOverlaps } from "../lib/positioning";
+import { calculateNewNodePosition, adjustNodesForNewNode, validateAndFixOverlaps, estimateNodeDimensions } from "../lib/positioning";
 import { INITIAL_CENTER_NODE } from "../lib/constants";
 import { initializeTicTacToeSession, convertConceptGraphToNodes, getGoal } from "../lib/api";
 export function useMindMap(initialText) {
@@ -46,7 +46,7 @@ export function useMindMap(initialText) {
                     const allNodes = [centerNodeObj]; // Start with just center node
                     childNodes.forEach((content, index) => {
                         const siblings = childNodeObjs; // Previously created siblings
-                        const position = calculateNewNodePosition(centerNodeObj, siblings, allNodes);
+                        const position = calculateNewNodePosition(centerNodeObj, siblings, allNodes, content);
                         const childNode = {
                             id: crypto.randomUUID(),
                             content,
@@ -171,7 +171,7 @@ export function useMindMap(initialText) {
                 // This is a deeper level node - inherit parent's color
                 nodeColor = parent.color;
             }
-            const position = calculateNewNodePosition(parent, siblings, prevNodes);
+            const position = calculateNewNodePosition(parent, siblings, prevNodes, content);
             const newNode = {
                 id: crypto.randomUUID(),
                 content,
@@ -180,8 +180,10 @@ export function useMindMap(initialText) {
                 color: nodeColor,
                 parentId,
             };
+            // Calculate new node dimensions
+            const { width, height } = estimateNodeDimensions(newNode);
             // Adjust existing nodes to make room for the new node
-            const adjustedNodes = adjustNodesForNewNode(position, newNode.id, prevNodes);
+            const adjustedNodes = adjustNodesForNewNode(position, newNode.id, width, height, prevNodes);
             const finalNodes = [...adjustedNodes, newNode];
             // Validate and fix any remaining overlaps
             const validatedNodes = validateAndFixOverlaps(finalNodes);
@@ -357,12 +359,16 @@ export function useMindMap(initialText) {
                 const draggingNode = prev.find((n) => n.id === draggingId);
                 if (!draggingNode)
                     return prev;
-                let updatedNodes = [...prev];
-                // Update the dragging node position first
-                updatedNodes = updatedNodes.map((n) => n.id === draggingId ? { ...n, x: newX, y: newY } : n);
-                // Use the improved collision detection and resolution system
-                updatedNodes = adjustNodesForNewNode({ x: newX, y: newY }, draggingId, updatedNodes.filter(n => n.id !== draggingId)).concat(updatedNodes.filter(n => n.id === draggingId));
-                return updatedNodes;
+                // Calculate dragging node dimensions
+                const { width, height } = estimateNodeDimensions(draggingNode);
+                // Create updated dragging node with new position
+                const updatedDraggingNode = { ...draggingNode, x: newX, y: newY };
+                // Get all other nodes (excluding the dragging node)
+                const otherNodes = prev.filter(n => n.id !== draggingId);
+                // Adjust other nodes to make room for the dragging node at its new position
+                const adjustedNodes = adjustNodesForNewNode({ x: newX, y: newY }, draggingId, width, height, otherNodes);
+                // Return adjusted nodes with the updated dragging node
+                return [...adjustedNodes, updatedDraggingNode];
             });
         }
         else if (isPanningBackground) {

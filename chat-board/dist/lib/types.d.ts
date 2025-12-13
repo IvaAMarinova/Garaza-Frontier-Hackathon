@@ -18,6 +18,15 @@ export interface Position {
     x: number;
     y: number;
 }
+export interface NodeBounds {
+    center: Position;
+    topLeft: Position;
+    topRight: Position;
+    bottomLeft: Position;
+    bottomRight: Position;
+    width: number;
+    height: number;
+}
 export interface Goal {
     text: string;
 }

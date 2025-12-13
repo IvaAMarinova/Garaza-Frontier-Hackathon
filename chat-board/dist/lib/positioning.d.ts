@@ -1,14 +1,25 @@
-import type { Node, Position } from "./types";
-export declare const NODE_WIDTH = 60;
-export declare const NODE_HEIGHT = 80;
-export declare const MIN_DISTANCE: number;
-export declare function calculateNewNodePosition(parent: Node, siblings: Node[], allNodes: Node[]): Position;
+import type { Node, Position, NodeBounds } from "./types";
 /**
- * Simple function to push overlapping nodes away from a new position
+ * Estimate node dimensions based on content
  */
-export declare function adjustNodesForNewNode(newNodePosition: Position, newNodeId: string, allNodes: Node[]): Node[];
+export declare function estimateNodeDimensions(node: Node): {
+    width: number;
+    height: number;
+};
 /**
- * Final validation to ensure no overlaps exist
+ * Calculate node bounds (corners + center) from node position and dimensions
+ */
+export declare function getNodeBounds(node: Node): NodeBounds;
+/**
+ * Calculate position for a new node
+ */
+export declare function calculateNewNodePosition(parent: Node, siblings: Node[], allNodes: Node[], newNodeContent?: Node["content"]): Position;
+/**
+ * Adjust existing nodes to make room for a new node
+ */
+export declare function adjustNodesForNewNode(newNodePosition: Position, newNodeId: string, newNodeWidth: number, newNodeHeight: number, allNodes: Node[]): Node[];
+/**
+ * Validate and fix any overlapping nodes
  */
 export declare function validateAndFixOverlaps(nodes: Node[]): Node[];
 /**
@@ -34,6 +45,6 @@ export declare function getNodesBoundingBox(nodes: Node[]): {
 export declare function findOverlappingNodes(nodes: Node[]): Array<{
     node1: Node;
     node2: Node;
-    distance: number;
+    overlap: boolean;
 }>;
 //# sourceMappingURL=positioning.d.ts.map
