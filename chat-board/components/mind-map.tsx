@@ -3,6 +3,7 @@
 
 import { useMindMap } from "../hooks/use-mind-map"
 import { NodeCard } from "./node-card"
+import GoalDisplay from "./goal-display"
 
 interface MindMapProps {
   initialText?: string
@@ -21,6 +22,7 @@ export default function MindMap({ initialText }: MindMapProps) {
     sessionId,
     isLoading,
     zoomLevel,
+    goal,
 
     addNode,
     deleteNode,
@@ -29,6 +31,7 @@ export default function MindMap({ initialText }: MindMapProps) {
     zoomIn,
     zoomOut,
     resetZoom,
+    handleFinish,
     handleMouseDown,
     handleBackgroundMouseDown,
   } = useMindMap(initialText)
@@ -53,6 +56,9 @@ export default function MindMap({ initialText }: MindMapProps) {
         </div>
       )}
 
+      {/* Goal Display */}
+      <GoalDisplay goal={goal} onFinish={handleFinish} />
+
       {/* Session info */}
       {sessionId && !isLoading && (
         <div className="absolute top-4 left-4 bg-white/90 dark:bg-slate-800/90 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-slate-400 backdrop-blur-sm">
@@ -61,7 +67,7 @@ export default function MindMap({ initialText }: MindMapProps) {
       )}
 
       {/* Zoom Controls */}
-      <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+      <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
         <button
           onClick={zoomIn}
           className="w-10 h-10 bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100"

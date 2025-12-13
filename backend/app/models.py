@@ -64,3 +64,7 @@ class ConceptGraphResponse(BaseModel):
     concepts: List[ConceptNodeModel] = Field(default_factory=list)
     edges: List[ConceptEdgeModel] = Field(default_factory=list)
     meta: ConceptGraphMetaModel
+
+
+class GoalResponse(BaseModel):
+    goal: str

@@ -7,6 +7,7 @@ from .models import (
     GenerateResponse,
     ConceptGraphBuildRequest,
     ConceptGraphResponse,
+    GoalResponse,
 )
 from .chat_service import ChatService
 from .concept_graph import ConceptGraphService
@@ -295,5 +296,19 @@ This creates a rich concept graph for exploring game development principles!"""
         }
         
         return ConceptGraphResponse(**hardcoded_graph)
+
+    @router.get("/sessions/{session_id}/goal", response_model=GoalResponse)
+    async def get_goal(session_id: str):
+        if not chat.get_state(session_id):
+            raise HTTPException(status_code=404, detail="session not found")
+        
+        # Simulate goal generation time
+        import asyncio
+        await asyncio.sleep(0.5)
+        
+        # Hardcoded goal for tic tac toe learning session
+        goal_text = "Master the fundamentals of tic tac toe game development by understanding game rules, strategic concepts, implementation patterns, and AI algorithms. Build a comprehensive knowledge base covering both theoretical concepts and practical programming approaches for creating an engaging tic tac toe game experience."
+        
+        return GoalResponse(goal=goal_text)
 
     return router

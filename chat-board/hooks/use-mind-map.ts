@@ -5,7 +5,8 @@ import type { Node, NodeContent } from "../lib/types"
 import { NODE_COLORS, CENTER_COLOR } from "../lib/colors"
 import { calculateNewNodePosition, adjustNodesForNewNode, validateAndFixOverlaps } from "../lib/positioning"
 import { INITIAL_CENTER_NODE } from "../lib/constants"
-import { initializeTicTacToeSession, convertConceptGraphToNodes } from "../lib/api"
+import { initializeTicTacToeSession, convertConceptGraphToNodes, getGoal } from "../lib/api"
+import type { Goal } from "../lib/types"
 export function useMindMap(initialText?: string) {
   // Theme state
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -15,6 +16,7 @@ export function useMindMap(initialText?: string) {
   const [isInitialized, setIsInitialized] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [goal, setGoal] = useState<Goal | null>(null)
   
   // Initialize with tic tac toe concept graph
   useEffect(() => {
@@ -26,6 +28,14 @@ export function useMindMap(initialText?: string) {
         try {
           const { sessionId: newSessionId, conceptGraph } = await initializeTicTacToeSession()
           setSessionId(newSessionId)
+          
+          // Fetch the goal after getting the session
+          try {
+            const goalResponse = await getGoal(newSessionId)
+            setGoal({ text: goalResponse.goal })
+          } catch (error) {
+            console.error('Failed to fetch goal:', error)
+          }
           
           const { centerNode, childNodes } = convertConceptGraphToNodes(conceptGraph)
           
@@ -149,6 +159,12 @@ export function useMindMap(initialText?: string) {
     [isDarkMode]
   )
 
+  const handleFinish = useCallback(() => {
+    // Handle finish action - could navigate away, show completion modal, etc.
+    console.log('Learning session finished!')
+    // For now, just log. In a real app, this might navigate to a completion page
+  }, [])
+
   // Node management
   const addNode = useCallback((parentId: string, content: NodeContent) => {
     setNodes((prevNodes) => {
@@ -216,6 +232,15 @@ export function useMindMap(initialText?: string) {
           return updated
         })
       }, 300)
+
+      // Fetch updated goal after adding new node
+      if (sessionId) {
+        getGoal(sessionId).then(goalResponse => {
+          setGoal({ text: goalResponse.goal })
+        }).catch(error => {
+          console.error('Failed to fetch updated goal:', error)
+        })
+      }
 
       return validatedNodes
     })
@@ -532,9 +557,11 @@ export function useMindMap(initialText?: string) {
     sessionId,
     isLoading,
     zoomLevel,
+    goal,
 
     // Actions
     toggleTheme,
+    handleFinish,
     addNode,
     deleteNode,
     editNode,

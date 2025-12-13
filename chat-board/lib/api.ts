@@ -55,6 +55,10 @@ export interface ConceptGraphResponse {
   }
 }
 
+export interface GoalResponse {
+  goal: string
+}
+
 export async function createSession(): Promise<CreateSessionResponse> {
   const url = `${API_BASE_URL}/sessions`
   console.log('Creating session at', url)
@@ -129,6 +133,21 @@ export async function getConceptGraph(sessionId: string): Promise<ConceptGraphRe
 
   if (!response.ok) {
     throw new Error(`Failed to get concept graph: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+export async function getGoal(sessionId: string): Promise<GoalResponse> {
+  const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/goal`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to get goal: ${response.statusText}`)
   }
 
   return response.json()
