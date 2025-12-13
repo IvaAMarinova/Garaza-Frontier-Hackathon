@@ -5,6 +5,7 @@ import type { Node, NodeContent } from "@/lib/types"
 import { NODE_COLORS, CENTER_COLOR } from "@/lib/colors"
 import { calculateNewNodePosition } from "@/lib/positioning"
 import { LAYOUT_CONSTANTS, INITIAL_CENTER_NODE } from "@/lib/constants"
+import { randomUUID } from "crypto"
 
 export function useMindMap(initialText?: string) {
   // Theme state
@@ -54,54 +55,58 @@ export function useMindMap(initialText?: string) {
   // Node management
   const addNode = useCallback(
     (parentId: string, content: NodeContent) => {
-      const parent = nodes.find((n) => n.id === parentId)
-      if (!parent) return
+      setNodes((prevNodes) => {
+        const parent = prevNodes.find((n) => n.id === parentId)
+        if (!parent) return prevNodes
 
-      const siblings = nodes.filter((n) => n.parentId === parentId)
-      let nodeColor: string
+        const siblings = prevNodes.filter((n) => n.parentId === parentId)
+        let nodeColor: string
 
-      if (parent.parentId === null) {
-        // This is a first-level child of the center node - assign a unique color
-        const usedColorIndices = new Set(
-          nodes
-            .filter((n) => n.parentId === "1")
-            .map((n) =>
-              NODE_COLORS.findIndex((c) =>
-                n.color.includes(c.light.split(" ")[0].replace("border-", ""))
+        if (parent.parentId === null) {
+          // This is a first-level child of the center node - assign a unique color
+          const usedColorIndices = new Set(
+            prevNodes
+              .filter((n) => n.parentId === "1")
+              .map((n) =>
+                NODE_COLORS.findIndex((c) =>
+                  n.color.includes(c.light.split(" ")[0].replace("border-", ""))
+                )
               )
-            )
-            .filter((i) => i !== -1)
-        )
+              .filter((i) => i !== -1)
+          )
 
-        let colorIndex = 0
-        while (
-          usedColorIndices.has(colorIndex) &&
-          colorIndex < NODE_COLORS.length
-        ) {
-          colorIndex++
+          let colorIndex = 0
+          while (
+            usedColorIndices.has(colorIndex) &&
+            colorIndex < NODE_COLORS.length
+          ) {
+            colorIndex++
+          }
+          if (colorIndex >= NODE_COLORS.length) {
+            colorIndex = Math.floor(Math.random() * NODE_COLORS.length)
+          }
+          nodeColor = NODE_COLORS[colorIndex].light
+        } else {
+          // This is a deeper level node - inherit parent's color
+          nodeColor = parent.color
         }
-        if (colorIndex >= NODE_COLORS.length) {
-          colorIndex = Math.floor(Math.random() * NODE_COLORS.length)
+
+        console.log(parent, siblings, prevNodes)
+
+        const position = calculateNewNodePosition(parent, siblings, prevNodes)
+        const newNode: Node = {
+          id: crypto.randomUUID(),
+          content,
+          x: position.x,
+          y: position.y,
+          color: nodeColor,
+          parentId,
         }
-        nodeColor = NODE_COLORS[colorIndex].light
-      } else {
-        // This is a deeper level node - inherit parent's color
-        nodeColor = parent.color
-      }
 
-      const position = calculateNewNodePosition(parent, siblings, nodes)
-      const newNode: Node = {
-        id: Date.now().toString(),
-        content,
-        x: position.x,
-        y: position.y,
-        color: nodeColor,
-        parentId,
-      }
-
-      setNodes((prev) => [...prev, newNode])
+        return [...prevNodes, newNode]
+      })
     },
-    [nodes]
+    []
   )
 
   const deleteNode = useCallback(

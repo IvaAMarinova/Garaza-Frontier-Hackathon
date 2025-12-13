@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus, Sparkles } from "lucide-react"
 import type { Node, NodeContent } from "@/lib/types"
 import { CodeBlock } from "./code-block"
 
@@ -28,6 +28,8 @@ export function NodeCard({
 }: NodeCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState<NodeContent>(node.content)
+  const [showTextInput, setShowTextInput] = useState(false)
+  const [inputText, setInputText] = useState("")
 
   const saveEdit = () => {
     onEdit(node.id, editContent)
@@ -37,6 +39,26 @@ export function NodeCard({
   const startEditing = () => {
     setEditContent(node.content)
     setIsEditing(true)
+  }
+
+  const handleTextSubmit = () => {
+    if (inputText.trim()) {
+      // For now, create two child nodes with the input text
+      // TODO: Send to API and create nodes based on API response
+      onAddChild(node.id, { text: inputText.trim() })
+      onAddChild(node.id, { text: inputText.trim() })
+      setInputText("")
+      setShowTextInput(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleTextSubmit()
+    } else if (e.key === "Escape") {
+      setShowTextInput(false)
+      setInputText("")
+    }
   }
 
   return (
@@ -86,7 +108,55 @@ export function NodeCard({
         >
           <Plus className="w-3 h-3 text-slate-600 dark:text-slate-300" />
         </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setShowTextInput(true)
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="p-1 bg-white dark:bg-slate-700 rounded-full shadow-md hover:shadow-lg hover:scale-110 transition-all border border-slate-200 dark:border-slate-600"
+          title="Generate nodes from text"
+        >
+          <Sparkles className="w-3 h-3 text-slate-600 dark:text-slate-300" />
+        </button>
       </div>
+
+      {showTextInput && (
+        <div
+          className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-3 min-w-[250px]"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Enter text..."
+            className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+            autoFocus
+          />
+          <div className="flex gap-2 mt-2">
+            <button
+              type="button"
+              onClick={handleTextSubmit}
+              className="flex-1 px-3 py-1.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+            >
+              Submit
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowTextInput(false)
+                setInputText("")
+              }}
+              className="px-3 py-1.5 text-xs bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-200 rounded-md transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
