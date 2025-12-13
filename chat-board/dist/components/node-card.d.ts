@@ -10,7 +10,10 @@ interface NodeCardProps {
     isCenter: boolean;
     isNewlyCreated?: boolean;
     isUpdated?: boolean;
+    sessionId?: string;
+    conceptId?: string;
+    isDarkMode?: boolean;
 }
-export declare function NodeCard({ node, onAddChild, onDelete: _onDelete, onEdit: _onEdit, onRemoveConnection: _onRemoveConnection, onMouseDown, isDragging, isCenter, isNewlyCreated, isUpdated, }: NodeCardProps): import("react/jsx-runtime").JSX.Element;
+export declare function NodeCard({ node, onAddChild, onDelete: _onDelete, onEdit: _onEdit, onRemoveConnection: _onRemoveConnection, onMouseDown, isDragging, isCenter, isNewlyCreated, isUpdated, sessionId, conceptId, isDarkMode, }: NodeCardProps): import("react/jsx-runtime").JSX.Element;
 export {};
 //# sourceMappingURL=node-card.d.ts.map

@@ -144,3 +144,49 @@
     opacity: 1;
   }
 }
+
+/* Disable text selection on mind map for better dragging */
+.mind-map-canvas {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Allow text selection only in input fields */
+.mind-map-canvas input,
+.mind-map-canvas textarea {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* Prevent text selection during drag operations */
+.cursor-grabbing,
+.cursor-grabbing * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Smooth dragging experience */
+.node-dragging {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Optimize SVG rendering for smooth connections */
+.canvas-container svg {
+  will-change: auto;
+  transform: translateZ(0);
+}
+
+/* Disable transitions on connections during dragging */
+.dragging-active path {
+  transition: none !important;
+}

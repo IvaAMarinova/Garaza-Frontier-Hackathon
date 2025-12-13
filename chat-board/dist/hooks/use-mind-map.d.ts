@@ -1,6 +1,6 @@
 import type { Node, NodeContent } from "../lib/types";
-export declare function useMindMap(initialText?: string): {
-    isDarkMode: boolean;
+import type { Goal } from "../lib/types";
+export declare function useMindMap(initialText?: string, isDarkMode?: boolean): {
     nodes: Node[];
     draggingId: string;
     containerRef: import("react").RefObject<HTMLDivElement>;
@@ -16,14 +16,19 @@ export declare function useMindMap(initialText?: string): {
     isPanningBackground: boolean;
     newlyCreatedNodes: Set<string>;
     updatedNodes: Set<string>;
-    toggleTheme: () => void;
+    sessionId: string;
+    isLoading: boolean;
+    zoomLevel: number;
+    goal: Goal;
+    handleFinish: () => void;
     addNode: (parentId: string, content: NodeContent) => void;
     deleteNode: (id: string) => void;
     editNode: (id: string, content: NodeContent) => void;
     removeConnection: (childId: string) => void;
+    zoomIn: () => void;
+    zoomOut: () => void;
+    resetZoom: () => void;
     handleMouseDown: (e: React.MouseEvent, nodeId: string) => void;
-    handleMouseMove: (e: React.MouseEvent) => void;
-    handleMouseUp: () => void;
     handleBackgroundMouseDown: (e: React.MouseEvent) => void;
 };
 //# sourceMappingURL=use-mind-map.d.ts.map
