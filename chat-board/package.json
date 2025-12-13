@@ -31,7 +31,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "tsc && next build",
+    "build:lib": "tsc",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

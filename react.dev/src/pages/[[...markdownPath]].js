@@ -20,8 +20,12 @@ import sidebarBlog from '../sidebarBlog.json';
 import {MDXComponents} from 'components/MDX/MDXComponents';
 import compileMDX from 'utils/compileMDX';
 import {generateRssFeed} from '../utils/rss';
+import { MindMap } from '@garaza-frontier/chat-board';
 
 export default function Layout({content, toc, meta, languages}) {
+  const router = useRouter();
+  const path = router.asPath;
+  
   const parsedContent = useMemo(
     () => JSON.parse(content, reviveNodeOnClient),
     [content]
@@ -47,6 +51,12 @@ export default function Layout({content, toc, meta, languages}) {
       routeTree = sidebarBlog;
       break;
   }
+  
+  // Special case for tutorial page - render mind map within the page layout
+  const pageContent = path === '/learn/tutorial-tic-tac-toe' 
+    ? <MindMap initialText="React Tutorial Mind Map" />
+    : parsedContent;
+  
   return (
     <Page
       toc={parsedToc}
@@ -54,7 +64,7 @@ export default function Layout({content, toc, meta, languages}) {
       meta={meta}
       section={section}
       languages={languages}>
-      {parsedContent}
+      {pageContent}
     </Page>
   );
 }
