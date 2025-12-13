@@ -131,3 +131,9 @@ class ConceptDeclutterResponse(BaseModel):
     children: List[ConceptNodeModel] = Field(default_factory=list)
     edges: List[ConceptEdgeModel] = Field(default_factory=list)
     skipped_expansions: List[int] = Field(default_factory=list)
+
+
+class ConceptExpandResponse(BaseModel):
+    concept: ConceptNodeModel
+    new_children: List[ConceptNodeModel] = Field(default_factory=list)
+    new_edges: List[ConceptEdgeModel] = Field(default_factory=list)

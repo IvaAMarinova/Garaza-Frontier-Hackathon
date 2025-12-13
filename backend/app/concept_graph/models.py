@@ -3,6 +3,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from ..id_utils import generate_concept_id, generate_edge_id
+
 
 def _normalize(text: str) -> str:
     return " ".join(text.strip().lower().split())
@@ -184,9 +186,10 @@ class ConceptGraph:
             self._register_aliases(existing)
             return existing
 
-        node_id = str(payload.get("id")) if payload.get("id") else str(uuid.uuid4())
+        seed_label = label or f"concept-{uuid.uuid4().hex}"
+        node_id = str(payload.get("id")) if payload.get("id") else generate_concept_id(seed_label)
         if node_id in self.concepts:
-            node_id = str(uuid.uuid4())
+            node_id = generate_concept_id(f"{seed_label}-{uuid.uuid4().hex}")
 
         node = ConceptNode(
             id=node_id,
@@ -211,6 +214,10 @@ class ConceptGraph:
         self.edges[edge.id] = edge
         key = self._edge_key(edge.from_concept_id, edge.to_concept_id, edge.relation)
         self._edge_index[key] = edge.id
+
+    def has_edge(self, src: str, dst: str, relation: str) -> bool:
+        key = self._edge_key(src, dst, relation)
+        return key in self._edge_index
 
     def apply_focus(self, concept_id: str, *, weight: Optional[float], expansion: Optional[str]) -> bool:
         node = self._get_concept(concept_id)
@@ -251,9 +258,11 @@ class ConceptGraph:
             edge.evidence_snippet = evidence_snippet or edge.evidence_snippet
             return edge
 
-        edge_id = str(payload.get("id")) if payload.get("id") else str(uuid.uuid4())
+        edge_id = str(payload.get("id")) if payload.get("id") else generate_edge_id(
+            f"{from_id}->{to_id}:{relation}"
+        )
         if edge_id in self.edges:
-            edge_id = str(uuid.uuid4())
+            edge_id = generate_edge_id(f"{from_id}->{to_id}:{relation}-{uuid.uuid4().hex}")
 
         edge = ConceptEdge(
             id=edge_id,

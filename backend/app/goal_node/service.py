@@ -6,6 +6,7 @@ from ..context_loader import load_initial_context
 from ..openai_client import OpenAIClient
 from ..store import InMemoryChatStore
 from ..concept_graph import ConceptGraphService
+from ..text_utils import derive_intent_label, normalize_text
 from ..models import ChatMessage
 from .models import (
     GoalNode,
@@ -113,13 +114,20 @@ class GoalNodeService:
         return goal
 
     async def refine_for_concepts(self, session_id: str, concept_ids: List[str]) -> GoalNode:
-        if not concept_ids:
-            return await self.get_goal(session_id, create_if_missing=True)
         goal = await self.get_goal(session_id, create_if_missing=True)
-        for cid in concept_ids:
-            goal.ensure_focus_entry(cid)
-        goal = await self._refine_goal(goal, concept_ids)
-        return goal
+        if not concept_ids:
+            return goal
+        unique_targets: List[str] = []
+        for concept_id in concept_ids:
+            concept_key = concept_id.strip()
+            if not concept_key:
+                continue
+            goal.ensure_focus_entry(concept_key)
+            if concept_key not in unique_targets:
+                unique_targets.append(concept_key)
+        if not unique_targets:
+            return goal
+        return await self._refine_goal(goal, unique_targets)
 
     async def _generate_initial_goal(self, session_id: str) -> GoalNode:
         session = self._chat_store.get_session(session_id)
@@ -158,10 +166,7 @@ class GoalNodeService:
             max_output_tokens=600,
         )
         answer_clean = answer.strip()
-        first_sentence = answer_clean.split("\n")[0].strip()
-        if first_sentence.endswith("."):
-            first_sentence = first_sentence[:-1]
-        short_goal = first_sentence if first_sentence else "Goal overview"
+        short_goal = self._build_goal_statement(answer_clean, user_query)
         goal = GoalNode(
             session_id=session_id,
             goal_statement=short_goal,
@@ -386,3 +391,14 @@ class GoalNodeService:
             return
         label = concept_label or concept_id
         goal.answer_markdown = goal.answer_markdown.rstrip() + f"\n- {label}: {summary}"
+
+    def _build_goal_statement(self, answer_text: str, user_query: str) -> str:
+        candidate = (answer_text or "").strip().split("\n")[0]
+        candidate = candidate.lstrip("-•0123456789. ").strip()
+        normalized_answer = normalize_text(candidate)
+        normalized_query = normalize_text(user_query)
+        if not candidate or (normalized_answer and normalized_answer == normalized_query):
+            candidate = derive_intent_label(user_query) or "React overview"
+        if len(candidate) > 110:
+            candidate = candidate[:110].rsplit(" ", 1)[0].strip() + "..."
+        return candidate or "React overview"

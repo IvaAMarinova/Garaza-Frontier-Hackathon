@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, HTTPException
 
 from .models import (
@@ -15,6 +17,7 @@ from .models import (
     ConceptExpandRequest,
     ConceptDeclutterRequest,
     ConceptDeclutterResponse,
+    ConceptExpandResponse,
 )
 from .chat_service import ChatService
 from .concept_graph import ConceptGraphService
@@ -74,7 +77,7 @@ def build_router(
 
     @router.post(
         "/sessions/{session_id}/concept-graph/{concept_id}/expand",
-        response_model=ConceptNodeModel,
+        response_model=ConceptExpandResponse,
     )
     async def expand_concept(session_id: str, concept_id: str, req: ConceptExpandRequest):
         try:
@@ -96,11 +99,37 @@ def build_router(
         except KeyError:
             raise HTTPException(status_code=404, detail="session not found")
 
+        new_children: List[ConceptNodeModel] = []
+        new_edges: List[ConceptEdgeModel] = []
         try:
             concept = concept_graphs.get_concept(session_id, concept_id)
         except KeyError:
             raise HTTPException(status_code=404, detail="concept not found")
-        return ConceptNodeModel(**concept)
+
+        if (concept.get("expansions") or []) and len(concept["expansions"]) >= 2:
+            try:
+                result = concept_graphs.declutter_concept(
+                    session_id,
+                    concept_id=concept_id,
+                )
+            except KeyError as exc:
+                detail = "concept not found" if "concept" in str(exc) else "session not found"
+                raise HTTPException(status_code=404, detail=detail)
+            concept = result["parent"]
+            new_children = [ConceptNodeModel(**child) for child in result.get("children", [])]
+            new_edges = [ConceptEdgeModel(**edge) for edge in result.get("edges", [])]
+            child_ids = [child.id for child in new_children]
+            if req.auto_refine and child_ids:
+                try:
+                    await goal_nodes.refine_for_concepts(session_id, child_ids)
+                except KeyError:
+                    raise HTTPException(status_code=404, detail="session not found")
+
+        return ConceptExpandResponse(
+            concept=ConceptNodeModel(**concept),
+            new_children=new_children,
+            new_edges=new_edges,
+        )
 
     @router.post(
         "/sessions/{session_id}/concept-graph/{concept_id}/declutter",
@@ -118,20 +147,19 @@ def build_router(
             detail = "concept not found" if "concept" in str(exc) else "session not found"
             raise HTTPException(status_code=404, detail=detail)
 
-        children_ids = [child["id"] for child in result.get("children", [])]
-        if req.auto_refine and children_ids:
+        child_models = [ConceptNodeModel(**child) for child in result.get("children", [])]
+        edge_models = [ConceptEdgeModel(**edge) for edge in result.get("edges", [])]
+
+        if req.auto_refine and child_models:
             try:
-                await goal_nodes.refine_for_concepts(session_id, children_ids)
+                await goal_nodes.refine_for_concepts(session_id, [child.id for child in child_models])
             except KeyError:
                 raise HTTPException(status_code=404, detail="session not found")
 
         return ConceptDeclutterResponse(
             parent=ConceptNodeModel(**result["parent"]),
-            children=[ConceptNodeModel(**child) for child in result.get("children", [])],
-            edges=[
-                ConceptEdgeModel(**edge)
-                for edge in result.get("edges", [])
-            ],
+            children=child_models,
+            edges=edge_models,
             skipped_expansions=result.get("skipped_expansions", []),
         )
 

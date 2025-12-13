@@ -47,7 +47,34 @@ Base URL: `/v1/chat`
     "auto_refine": true
   }
   ```
-  Annotates a concept with a new expansion/weight, triggers the Goal Node refinement pass, and returns the updated concept object.
+  Annotates a concept with a new expansion/weight, triggers the Goal Node refinement pass, and returns:
+  ```json
+  {
+    "concept": { "...updated concept..." },
+    "new_children": [
+      {
+        "id": "detail-state-model",
+        "label": "State modeling constraints",
+        "type": "concept",
+        "summary": "Capture the telemetry state slices (selected metric, polling cadence, streaming buffer).",
+        "first_seen_index": 3,
+        "last_seen_index": 3,
+        "weight": 0.31,
+        "expansions": []
+      }
+    ],
+    "new_edges": [
+      {
+        "id": "edge-detail",
+        "from_concept_id": "feature-123",
+        "to_concept_id": "detail-state-model",
+        "relation": "refines",
+        "introduced_index": 3
+      }
+    ]
+  }
+  ```
+  When two or more expansions accumulate, decluttering is triggered automatically: the parent summary absorbs the existing expansions, and any truly new ideas are emitted via `new_children` + `new_edges`.
 
 - `POST /sessions/{session_id}/concept-graph/{concept_id}/declutter`
   ```json
@@ -57,13 +84,31 @@ Base URL: `/v1/chat`
     "auto_refine": true
   }
   ```
-  Consolidates the concept’s summary and, when expansions contain distinct information, promotes them to child concepts (with edges pointing back to the original). Always returns the updated parent plus any children created.
+  Explicitly runs the declutter pass (useful when you want to choose which expansions to promote). Returns the updated parent, any child concepts created, and the edges linking them:
+  ```json
+  {
+    "parent": { "...concept after summarising the expansions..." },
+    "children": [{ "...new child concept..." }],
+    "edges": [{ "...refines edge..." }],
+    "skipped_expansions": [5]
+  }
+  ```
 
 ### Graph Structure Example
 
 ```json
 {
   "concepts": [
+    {
+      "id": "intent-SESSION",
+      "label": "React telemetry dashboard intent",
+      "type": "intent",
+      "summary": "Central React intent: React telemetry dashboard intent",
+      "first_seen_index": 0,
+      "last_seen_index": 0,
+      "weight": 1.0,
+      "expansions": []
+    },
     {
       "id": "feature-123",
       "label": "Telemetry pipeline",
@@ -79,6 +124,13 @@ Base URL: `/v1/chat`
     }
   ],
   "edges": [
+    {
+      "id": "edge-intent",
+      "from_concept_id": "intent-SESSION",
+      "to_concept_id": "feature-123",
+      "relation": "anchors",
+      "introduced_index": 0
+    },
     {
       "id": "edge-789",
       "from_concept_id": "feature-123",
@@ -171,3 +223,4 @@ Base URL: `/v1/chat`
    ```
    POST /v1/chat/sessions/{session_id}/concept-graph/{concept_id}/expand
    ```
+   The response echoes the updated concept and includes any `new_children` + `new_edges` that were produced by the declutter pass.
