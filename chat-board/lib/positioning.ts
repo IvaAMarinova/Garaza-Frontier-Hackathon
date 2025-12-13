@@ -1,12 +1,12 @@
 import type { Node, Position } from "./types"
 
-// Node dimensions in pixels
-const NODE_WIDTH = 180 // Node width in pixels
-const NODE_HEIGHT = 120 // Node height in pixels
+// Node dimensions in pixels - these should match the actual rendered node sizes
+export const NODE_WIDTH = 180 // Node width in pixels
+export const NODE_HEIGHT = 120 // Node height in pixels
 // Minimum distance ensures nodes never overlap - using diagonal distance of larger node
-const MIN_DISTANCE = Math.sqrt(NODE_WIDTH * NODE_WIDTH + NODE_HEIGHT * NODE_HEIGHT) + 20 // Extra padding
+export const MIN_DISTANCE = Math.sqrt(NODE_WIDTH * NODE_WIDTH + NODE_HEIGHT * NODE_HEIGHT) + 30 // Extra padding for better spacing
 const MIN_TOPIC_DISTANCE = 400 // Minimum distance between different topics in pixels
-const TOPIC_CLUSTER_RADIUS = 300 // Maximum distance nodes in same topic should be from topic root in pixels
+// const TOPIC_CLUSTER_RADIUS = 300 // Maximum distance nodes in same topic should be from topic root in pixels
 
 /**
  * Find the topic root (first-level node) for a given node
@@ -481,4 +481,50 @@ export function getNodeFamily(nodeId: string, nodes: Node[]): string[] {
 
   // Get all siblings (nodes with same parent)
   return nodes.filter((n) => n.parentId === node.parentId).map((n) => n.id)
+}
+
+/**
+ * Adjust positions of existing nodes to make room for a new node
+ * This function pushes overlapping nodes away from the new node position
+ */
+export function adjustNodesForNewNode(
+  newNodePosition: Position,
+  newNodeId: string,
+  allNodes: Node[]
+): Node[] {
+  const adjustedNodes = [...allNodes]
+  
+  // Find nodes that would overlap with the new position
+  const overlappingNodes = allNodes.filter((node) => {
+    const distance = Math.sqrt(
+      Math.pow(node.x - newNodePosition.x, 2) + Math.pow(node.y - newNodePosition.y, 2)
+    )
+    return distance < MIN_DISTANCE
+  })
+
+  // Push overlapping nodes away
+  overlappingNodes.forEach((overlappingNode) => {
+    const dx = overlappingNode.x - newNodePosition.x
+    const dy = overlappingNode.y - newNodePosition.y
+    const currentDistance = Math.sqrt(dx * dx + dy * dy)
+    
+    if (currentDistance > 0) {
+      // Calculate push direction (away from new node)
+      const pushDistance = MIN_DISTANCE - currentDistance + 20 // Extra padding
+      const pushX = (dx / currentDistance) * pushDistance
+      const pushY = (dy / currentDistance) * pushDistance
+      
+      // Update the overlapping node's position
+      const nodeIndex = adjustedNodes.findIndex((n) => n.id === overlappingNode.id)
+      if (nodeIndex !== -1) {
+        adjustedNodes[nodeIndex] = {
+          ...adjustedNodes[nodeIndex],
+          x: overlappingNode.x + pushX,
+          y: overlappingNode.y + pushY,
+        }
+      }
+    }
+  })
+
+  return adjustedNodes
 }
