@@ -203,6 +203,15 @@ class ConceptGraph:
         self._register_aliases(node)
         return node
 
+    def add_concept(self, node: ConceptNode) -> None:
+        self.concepts[node.id] = node
+        self._register_aliases(node)
+
+    def add_edge(self, edge: ConceptEdge) -> None:
+        self.edges[edge.id] = edge
+        key = self._edge_key(edge.from_concept_id, edge.to_concept_id, edge.relation)
+        self._edge_index[key] = edge.id
+
     def apply_focus(self, concept_id: str, *, weight: Optional[float], expansion: Optional[str]) -> bool:
         node = self._get_concept(concept_id)
         if not node:

@@ -49,6 +49,16 @@ Base URL: `/v1/chat`
   ```
   Annotates a concept with a new expansion/weight, triggers the Goal Node refinement pass, and returns the updated concept object.
 
+- `POST /sessions/{session_id}/concept-graph/{concept_id}/declutter`
+  ```json
+  {
+    "force_children": false,
+    "expansion_indices": [0, 2],
+    "auto_refine": true
+  }
+  ```
+  Consolidates the concept’s summary and, when expansions contain distinct information, promotes them to child concepts (with edges pointing back to the original). Always returns the updated parent plus any children created.
+
 ### Graph Structure Example
 
 ```json

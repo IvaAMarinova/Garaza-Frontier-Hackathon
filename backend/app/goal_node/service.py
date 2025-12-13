@@ -112,6 +112,15 @@ class GoalNodeService:
         self._store.upsert(session_id, goal)
         return goal
 
+    async def refine_for_concepts(self, session_id: str, concept_ids: List[str]) -> GoalNode:
+        if not concept_ids:
+            return await self.get_goal(session_id, create_if_missing=True)
+        goal = await self.get_goal(session_id, create_if_missing=True)
+        for cid in concept_ids:
+            goal.ensure_focus_entry(cid)
+        goal = await self._refine_goal(goal, concept_ids)
+        return goal
+
     async def _generate_initial_goal(self, session_id: str) -> GoalNode:
         session = self._chat_store.get_session(session_id)
         if not session:

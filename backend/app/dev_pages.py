@@ -973,6 +973,15 @@ _CONCEPT_GRAPH_HTML = """<!DOCTYPE html>
       font-size: 0.85rem;
       opacity: 0.8;
     }
+    .mini-btn {
+      margin-top: 0.5rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: transparent;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -1162,6 +1171,7 @@ _CONCEPT_GRAPH_HTML = """<!DOCTYPE html>
             }
             <p><small>Weight: ${weight}</small></p>
             ${expansions}
+            <button class="mini-btn" data-declutter="${concept.id}">Declutter</button>
           `;
           conceptList.appendChild(el);
         });
@@ -1291,6 +1301,46 @@ _CONCEPT_GRAPH_HTML = """<!DOCTYPE html>
         expandBtn.disabled = false;
       }
     }
+
+    async function handleDeclutter(conceptId) {
+      const sessionId = sessionInput.value.trim();
+      if (!sessionId) {
+        setError("Provide a session ID.");
+        return;
+      }
+      setStoredSessionId(sessionId);
+      try {
+        statusEl.classList.remove("error");
+        statusEl.textContent = "Decluttering concept…";
+        const res = await fetch(
+          `/v1/chat/sessions/${sessionId}/concept-graph/${encodeURIComponent(
+            conceptId
+          )}/declutter`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ auto_refine: true }),
+          }
+        );
+        if (!res.ok) {
+          throw new Error("Request failed (" + res.status + ")");
+        }
+        await handleRefresh();
+        statusEl.textContent = "Concept decluttered.";
+      } catch (err) {
+        setError(err.message || "Failed to declutter concept.");
+      }
+    }
+
+    conceptList.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-declutter]");
+      if (btn) {
+        const conceptId = btn.getAttribute("data-declutter");
+        if (conceptId) {
+          handleDeclutter(conceptId);
+        }
+      }
+    });
 
     buildBtn.addEventListener("click", handleBuild);
     refreshBtn.addEventListener("click", handleRefresh);
