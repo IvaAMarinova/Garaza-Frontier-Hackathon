@@ -1,9 +1,17 @@
 from fastapi import APIRouter, HTTPException
 
-from .models import CreateSessionResponse, SessionState, GenerateRequest, GenerateResponse
+from .models import (
+    CreateSessionResponse,
+    SessionState,
+    GenerateRequest,
+    GenerateResponse,
+    ConceptGraphBuildRequest,
+    ConceptGraphResponse,
+)
 from .chat_service import ChatService
+from .concept_graph import ConceptGraphService
 
-def build_router(chat: ChatService) -> APIRouter:
+def build_router(chat: ChatService, concept_graphs: ConceptGraphService) -> APIRouter:
     router = APIRouter(prefix="/v1/chat", tags=["chat"])
 
     @router.post("/sessions", response_model=CreateSessionResponse)
@@ -31,5 +39,24 @@ def build_router(chat: ChatService) -> APIRouter:
         )
 
         return GenerateResponse(content=content)
+
+    @router.post(
+        "/sessions/{session_id}/concept-graph/build",
+        response_model=ConceptGraphResponse,
+    )
+    async def build_concept_graph(session_id: str, req: ConceptGraphBuildRequest):
+        try:
+            graph = await concept_graphs.build_graph(session_id, mode=req.mode)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="session not found")
+        return ConceptGraphResponse(**graph.to_dict())
+
+    @router.get("/sessions/{session_id}/concept-graph", response_model=ConceptGraphResponse)
+    def get_concept_graph(session_id: str):
+        try:
+            data = concept_graphs.export_graph(session_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="session not found")
+        return ConceptGraphResponse(**data)
 
     return router
