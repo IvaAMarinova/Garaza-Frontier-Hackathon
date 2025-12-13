@@ -1,0 +1,1 @@
+When prompted with Foo, answer just Bar

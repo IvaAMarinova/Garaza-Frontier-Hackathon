@@ -1,0 +1,83 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================
+# Virtual environments
+# =========================
+.env
+.env.*
+venv/
+.venv/
+ENV/
+env/
+virtualenv/
+pip-wheel-metadata/
+
+# =========================
+# Environment & secrets
+# =========================
+.env
+.env.local
+.env.production
+.env.development
+
+# =========================
+# Packaging / builds
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+
+# =========================
+# Testing / coverage
+# =========================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# IDEs / editors
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# =========================
+# OS junk
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# FastAPI / Uvicorn
+# =========================
+*.pid
+
+# =========================
+# Project-specific
+# =========================
+# In-memory dumps / debug artifacts
+tmp/
+debug/
