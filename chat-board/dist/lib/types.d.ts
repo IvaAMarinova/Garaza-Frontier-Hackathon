@@ -18,4 +18,7 @@ export interface Position {
     x: number;
     y: number;
 }
+export interface Goal {
+    text: string;
+}
 //# sourceMappingURL=types.d.ts.map

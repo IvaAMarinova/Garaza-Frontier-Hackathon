@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Plus, Sparkles } from "lucide-react"
 import type { Node, NodeContent } from "../lib/types"
 import { CodeBlock } from "./code-block"
+import { LAYOUT_CONSTANTS } from "../lib/constants"
 
 interface NodeCardProps {
   node: Node

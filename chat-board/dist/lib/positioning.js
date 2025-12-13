@@ -1,360 +1,199 @@
-// Node dimensions in pixels
-const NODE_WIDTH = 180; // Node width in pixels
-const NODE_HEIGHT = 120; // Node height in pixels
+// Node dimensions in pixels - these should match the actual rendered node sizes
+export const NODE_WIDTH = 60; // Node width in pixels (made smaller)
+export const NODE_HEIGHT = 80; // Node height in pixels (made smaller)
 // Minimum distance ensures nodes never overlap - using diagonal distance of larger node
-const MIN_DISTANCE = Math.sqrt(NODE_WIDTH * NODE_WIDTH + NODE_HEIGHT * NODE_HEIGHT) + 20; // Extra padding
-const MIN_TOPIC_DISTANCE = 400; // Minimum distance between different topics in pixels
-const TOPIC_CLUSTER_RADIUS = 300; // Maximum distance nodes in same topic should be from topic root in pixels
+export const MIN_DISTANCE = Math.sqrt(NODE_WIDTH * NODE_WIDTH + NODE_HEIGHT * NODE_HEIGHT) + 40; // Extra padding for better spacing
+const MIN_PARENT_DISTANCE = 200; // Minimum distance from parent node
+const MIN_CENTER_CHILD_DISTANCE = 400; // Minimum distance from center node for first-level children
+const SEARCH_RADIUS_INCREMENT = 50; // How much to increase search radius each iteration
 /**
- * Find the topic root (first-level node) for a given node
- * A topic is identified by the first-level ancestor (direct child of center)
+ * Check if a position has any collision with existing nodes
  */
-function getTopicRoot(node, allNodes) {
-    if (node.parentId === null) {
-        // This is the center node, it has no topic
-        return null;
-    }
-    // If the node's parent is the center node, then this node IS the topic root
-    const parent = allNodes.find((n) => n.id === node.parentId);
-    if (parent?.parentId === null) {
-        return node;
-    }
-    // Otherwise, traverse up to find the first-level ancestor
-    let current = node;
-    while (current) {
-        const currentParent = allNodes.find((n) => n.id === current.parentId);
-        if (!currentParent)
-            break;
-        if (currentParent.parentId === null) {
-            // currentParent is the center node, so current is the topic root
-            return current;
-        }
-        current = currentParent;
-    }
-    return null;
-}
-/**
- * Get all nodes that belong to the same topic
- */
-function getTopicNodes(topicRoot, allNodes) {
-    if (!topicRoot) {
-        // Center node has no topic
-        return [];
-    }
-    // Get all descendants of the topic root
-    const topicNodes = [topicRoot];
-    const queue = [topicRoot.id];
-    while (queue.length > 0) {
-        const currentId = queue.shift();
-        const children = allNodes.filter((n) => n.parentId === currentId);
-        topicNodes.push(...children);
-        queue.push(...children.map((n) => n.id));
-    }
-    return topicNodes;
-}
-/**
- * Calculate the centroid of a topic (average position of all nodes in the topic)
- */
-function getTopicCentroid(topicNodes) {
-    if (topicNodes.length === 0)
-        return null;
-    const sumX = topicNodes.reduce((sum, node) => sum + node.x, 0);
-    const sumY = topicNodes.reduce((sum, node) => sum + node.y, 0);
-    return {
-        x: sumX / topicNodes.length,
-        y: sumY / topicNodes.length,
-    };
-}
-/**
- * Check if a position overlaps with any existing node
- */
-function hasOverlapWithAnyNode(candidate, excludeNodeId, allNodes, minDistance) {
-    return allNodes.some((node) => {
+function hasCollision(position, allNodes, excludeNodeId, isFirstLevel = false) {
+    for (const node of allNodes) {
         if (excludeNodeId && node.id === excludeNodeId)
-            return false;
-        const distance = Math.sqrt(Math.pow(node.x - candidate.x, 2) + Math.pow(node.y - candidate.y, 2));
-        return distance < minDistance;
-    });
-}
-/**
- * Check if a position is too close to nodes from other topics
- */
-function isTooCloseToOtherTopics(candidate, currentTopicRoot, allNodes, minDistance) {
-    // Group all nodes by topic
-    const topics = new Map();
-    allNodes.forEach((node) => {
-        const root = getTopicRoot(node, allNodes);
-        if (!topics.has(root)) {
-            topics.set(root, []);
-        }
-        topics.get(root).push(node);
-    });
-    // Check distance to other topics
-    for (const [topicRoot, topicNodes] of topics.entries()) {
-        // Skip if it's the same topic
-        if (topicRoot === currentTopicRoot)
             continue;
-        // Check if candidate is too close to any node in this topic
-        for (const node of topicNodes) {
-            const distance = Math.sqrt(Math.pow(node.x - candidate.x, 2) + Math.pow(node.y - candidate.y, 2));
-            if (distance < minDistance) {
-                return true;
-            }
+        const distance = Math.sqrt(Math.pow(position.x - node.x, 2) + Math.pow(position.y - node.y, 2));
+        // Use larger minimum distance for first-level nodes (children of center)
+        const minDistance = isFirstLevel ? MIN_CENTER_CHILD_DISTANCE : MIN_DISTANCE;
+        if (distance < minDistance) {
+            return true;
         }
     }
     return false;
 }
 /**
- * Find a non-overlapping position by systematically searching around a center point
+ * Find a safe position for a new node around its parent
+ * Simple spiral search that guarantees no overlaps
  */
-function findNonOverlappingPosition(center, excludeNodeId, allNodes, minDistance, maxRadius = 2000) {
-    // Try increasingly larger radii
-    for (let radius = MIN_DISTANCE; radius <= maxRadius; radius += MIN_DISTANCE) {
-        // Try positions in a spiral pattern
-        const attemptsPerRadius = Math.max(8, Math.floor((2 * Math.PI * radius) / MIN_DISTANCE));
-        for (let i = 0; i < attemptsPerRadius; i++) {
-            const angle = (360 / attemptsPerRadius) * i;
-            const rad = (angle * Math.PI) / 180;
-            const candidate = {
-                x: center.x + Math.cos(rad) * radius,
-                y: center.y + Math.sin(rad) * radius,
+function findSafePosition(parent, allNodes, preferredAngle, isFirstLevel = false) {
+    // Use larger distance for first-level children (direct children of center node)
+    const startRadius = isFirstLevel ? MIN_CENTER_CHILD_DISTANCE : MIN_PARENT_DISTANCE;
+    const maxRadius = 2000;
+    // If we have a preferred angle, try that first
+    if (preferredAngle !== undefined) {
+        for (let radius = startRadius; radius <= maxRadius; radius += SEARCH_RADIUS_INCREMENT) {
+            const position = {
+                x: parent.x + Math.cos((preferredAngle * Math.PI) / 180) * radius,
+                y: parent.y + Math.sin((preferredAngle * Math.PI) / 180) * radius,
             };
-            if (!hasOverlapWithAnyNode(candidate, excludeNodeId, allNodes, minDistance)) {
-                return candidate;
+            if (!hasCollision(position, allNodes, undefined, isFirstLevel)) {
+                return position;
             }
         }
     }
-    return null;
+    // Spiral search starting from minimum distance
+    for (let radius = startRadius; radius <= maxRadius; radius += SEARCH_RADIUS_INCREMENT) {
+        const angleStep = Math.max(15, 360 / Math.max(8, Math.floor((2 * Math.PI * radius) / MIN_DISTANCE)));
+        for (let angle = 0; angle < 360; angle += angleStep) {
+            const position = {
+                x: parent.x + Math.cos((angle * Math.PI) / 180) * radius,
+                y: parent.y + Math.sin((angle * Math.PI) / 180) * radius,
+            };
+            if (!hasCollision(position, allNodes, undefined, isFirstLevel)) {
+                return position;
+            }
+        }
+    }
+    // Fallback: place far away
+    return {
+        x: parent.x + maxRadius,
+        y: parent.y + maxRadius
+    };
 }
 export function calculateNewNodePosition(parent, siblings, allNodes) {
     // Check if this is a first-level child (direct child of center node)
     const isFirstLevel = parent.parentId === null;
-    // Get the topic root for the new node
-    const topicRoot = isFirstLevel ? null : getTopicRoot(parent, allNodes);
-    const topicNodes = getTopicNodes(topicRoot, allNodes);
-    const topicCentroid = topicNodes.length > 0 ? getTopicCentroid(topicNodes) : null;
     if (isFirstLevel) {
-        // For first-level children, use wider spacing to create distinct branches
-        // These are topic roots, so they should be far apart
-        const BRANCH_RADIUS = 350; // Larger radius for main branches in pixels
-        const BRANCH_ANGLE_SPACING = 60; // Degrees between main branches
-        const MIN_BRANCH_DISTANCE = MIN_TOPIC_DISTANCE; // Minimum distance between topics
-        // Calculate angle for this branch based on existing siblings
-        const baseAngle = siblings.length * BRANCH_ANGLE_SPACING;
-        const maxAttempts = 12;
-        // Try multiple radius levels for first-level nodes
-        for (let radiusLevel = 0; radiusLevel < 3; radiusLevel++) {
-            const currentRadius = BRANCH_RADIUS + radiusLevel * 100;
-            for (let i = 0; i < maxAttempts; i++) {
-                const angle = baseAngle + i * 30; // Try different angles
-                const rad = (angle * Math.PI) / 180;
-                const candidate = {
-                    x: parent.x + Math.cos(rad) * currentRadius,
-                    y: parent.y + Math.sin(rad) * currentRadius,
-                };
-                // Check overlap with ALL nodes - never allow overlaps
-                let hasOverlap = false;
-                // Check against all nodes
-                for (const node of allNodes) {
-                    if (node.id === parent.id)
-                        continue; // Skip parent
-                    const distance = Math.sqrt(Math.pow(node.x - candidate.x, 2) +
-                        Math.pow(node.y - candidate.y, 2));
-                    // Use larger distance for other first-level nodes (topics)
-                    if (node.parentId === parent.id) {
-                        if (distance < MIN_BRANCH_DISTANCE) {
-                            hasOverlap = true;
-                            break;
-                        }
-                    }
-                    else {
-                        // Use standard minimum distance for all other nodes
-                        if (distance < MIN_DISTANCE) {
-                            hasOverlap = true;
-                            break;
-                        }
-                    }
-                }
-                if (!hasOverlap) {
-                    return candidate;
-                }
-            }
-        }
-        // Fallback for first-level: try to find a non-overlapping position
-        const fallbackAngle = siblings.length * BRANCH_ANGLE_SPACING + Math.random() * 30;
-        const rad = (fallbackAngle * Math.PI) / 180;
-        const fallbackRadius = BRANCH_RADIUS + 150;
-        const fallback = {
-            x: parent.x + Math.cos(rad) * fallbackRadius,
-            y: parent.y + Math.sin(rad) * fallbackRadius,
-        };
-        // Check if fallback overlaps - if so, find a non-overlapping position
-        if (hasOverlapWithAnyNode(fallback, parent.id, allNodes, MIN_BRANCH_DISTANCE)) {
-            const nonOverlapping = findNonOverlappingPosition(parent, parent.id, allNodes, MIN_BRANCH_DISTANCE, 3000);
-            if (nonOverlapping) {
-                return nonOverlapping;
-            }
-        }
-        // Final fallback - try increasing radius systematically
-        for (let radius = fallbackRadius + MIN_BRANCH_DISTANCE; radius <= 5000; radius += MIN_BRANCH_DISTANCE) {
-            for (let angleOffset = 0; angleOffset < 360; angleOffset += 30) {
-                const testAngle = (fallbackAngle + angleOffset) % 360;
-                const testRad = (testAngle * Math.PI) / 180;
-                const testPosition = {
-                    x: parent.x + Math.cos(testRad) * radius,
-                    y: parent.y + Math.sin(testRad) * radius,
-                };
-                if (!hasOverlapWithAnyNode(testPosition, parent.id, allNodes, MIN_BRANCH_DISTANCE)) {
-                    return testPosition;
-                }
-            }
-        }
-        // Ultimate fallback - return fallback position (should rarely happen)
-        return fallback;
+        // For first-level children (main branches), use wider spacing and larger distance
+        const baseAngle = siblings.length * 60; // 60 degrees between main branches
+        return findSafePosition(parent, allNodes, baseAngle, true); // Pass true for isFirstLevel
     }
     else {
-        // For deeper level nodes, position them close to their topic
-        // Extend in the same direction as the topic root (relative to center)
-        const baseRadius = 150; // Closer to parent for sub-branches in pixels
-        const maxAttempts = 24;
-        // Find center node to calculate direction
-        const centerNode = allNodes.find((n) => n.parentId === null);
-        // Calculate preferred direction: from center towards topic root
-        let preferredDirectionAngle = null;
-        if (topicRoot && centerNode) {
-            const dx = topicRoot.x - centerNode.x;
-            const dy = topicRoot.y - centerNode.y;
-            preferredDirectionAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
-        }
-        // Prefer positions that keep the node within the topic cluster
-        const preferredRadius = topicCentroid
-            ? Math.min(baseRadius, Math.sqrt(Math.pow(parent.x - topicCentroid.x, 2) +
-                Math.pow(parent.y - topicCentroid.y, 2)) + baseRadius)
-            : baseRadius;
-        // Try multiple radius levels if needed
-        for (let radiusLevel = 0; radiusLevel < 3; radiusLevel++) {
-            const currentRadius = preferredRadius + radiusLevel * 100;
-            // Generate candidate angles, prioritizing the preferred direction
-            const candidateAngles = [];
-            if (preferredDirectionAngle !== null && topicRoot) {
-                // Calculate direction from parent towards topic root (extends the branch)
-                const parentDx = topicRoot.x - parent.x;
-                const parentDy = topicRoot.y - parent.y;
-                const parentDirectionAngle = (Math.atan2(parentDy, parentDx) * 180) / Math.PI;
-                // Also consider the general direction from center (for consistency)
-                const centerDirectionAngle = preferredDirectionAngle;
-                // Prefer angles that extend in the direction of the topic root
-                // Try angles from parent towards topic root (±45 degrees)
-                for (let offset = -45; offset <= 45; offset += 15) {
-                    candidateAngles.push((parentDirectionAngle + offset + 360) % 360);
-                }
-                // Also try angles in the general direction from center (±60 degrees)
-                // This helps maintain the overall branch direction
-                for (let offset = -60; offset <= 60; offset += 30) {
-                    const angle = (centerDirectionAngle + offset + 360) % 360;
-                    if (!candidateAngles.includes(angle)) {
-                        candidateAngles.push(angle);
-                    }
-                }
-            }
-            // Fill remaining attempts with evenly spaced angles
-            for (let i = candidateAngles.length; i < maxAttempts; i++) {
-                candidateAngles.push((360 / maxAttempts) * i + ((siblings.length * 15) % 360));
-            }
-            // Try positions in order of preference
-            for (const angle of candidateAngles) {
-                const rad = (angle * Math.PI) / 180;
-                const candidate = {
-                    x: parent.x + Math.cos(rad) * currentRadius,
-                    y: parent.y + Math.sin(rad) * currentRadius,
-                };
-                // Check if position overlaps with ANY existing nodes - NEVER allow overlaps
-                const hasOverlap = hasOverlapWithAnyNode(candidate, parent.id, allNodes, MIN_DISTANCE);
-                // Check if position is too close to other topics
-                const tooCloseToOtherTopics = isTooCloseToOtherTopics(candidate, topicRoot, allNodes, MIN_TOPIC_DISTANCE);
-                if (!hasOverlap && !tooCloseToOtherTopics) {
-                    return candidate;
-                }
-            }
-        }
-        // Fallback: try to position near parent but away from other topics
-        // Prefer extending in the direction of the topic root
-        let fallbackAngle;
-        if (preferredDirectionAngle !== null) {
-            // Use the preferred direction with some variation
-            fallbackAngle = (preferredDirectionAngle + (siblings.length * 20) % 60) % 360;
-        }
-        else {
-            fallbackAngle = (siblings.length * 45 + Math.random() * 90) % 360;
-        }
-        const rad = (fallbackAngle * Math.PI) / 180;
-        const fallbackRadius = preferredRadius + 100;
-        const fallback = {
-            x: parent.x + Math.cos(rad) * fallbackRadius,
-            y: parent.y + Math.sin(rad) * fallbackRadius,
-        };
-        // Check if fallback overlaps with any nodes - NEVER allow overlaps
-        if (hasOverlapWithAnyNode(fallback, parent.id, allNodes, MIN_DISTANCE)) {
-            // Try systematic search for non-overlapping position
-            const nonOverlapping = findNonOverlappingPosition(parent, parent.id, allNodes, MIN_DISTANCE, 2000);
-            if (nonOverlapping) {
-                // Check if it's too close to other topics
-                if (!isTooCloseToOtherTopics(nonOverlapping, topicRoot, allNodes, MIN_TOPIC_DISTANCE)) {
-                    return nonOverlapping;
-                }
-            }
-            // Try increasing radius with different angles
-            for (let radius = fallbackRadius + MIN_DISTANCE; radius <= 3000; radius += MIN_DISTANCE) {
-                for (let angleOffset = 0; angleOffset < 360; angleOffset += 30) {
-                    const testAngle = (fallbackAngle + angleOffset) % 360;
-                    const testRad = (testAngle * Math.PI) / 180;
-                    const testPosition = {
-                        x: parent.x + Math.cos(testRad) * radius,
-                        y: parent.y + Math.sin(testRad) * radius,
-                    };
-                    if (!hasOverlapWithAnyNode(testPosition, parent.id, allNodes, MIN_DISTANCE) &&
-                        !isTooCloseToOtherTopics(testPosition, topicRoot, allNodes, MIN_TOPIC_DISTANCE)) {
-                        return testPosition;
-                    }
-                }
-            }
-        }
-        // If fallback is too close to other topics, try to move it towards topic centroid
-        if (isTooCloseToOtherTopics(fallback, topicRoot, allNodes, MIN_TOPIC_DISTANCE)) {
-            // Move towards topic centroid if available to keep it within the topic cluster
-            if (topicCentroid) {
-                const directionX = topicCentroid.x - fallback.x;
-                const directionY = topicCentroid.y - fallback.y;
-                const distance = Math.sqrt(directionX * directionX + directionY * directionY);
-                if (distance > 0) {
-                    // Try moving closer to topic centroid, but check for overlaps
-                    for (let moveDistance = 50; moveDistance <= 200; moveDistance += 50) {
-                        const adjustedPosition = {
-                            x: fallback.x + (directionX / distance) * moveDistance,
-                            y: fallback.y + (directionY / distance) * moveDistance,
-                        };
-                        if (!hasOverlapWithAnyNode(adjustedPosition, parent.id, allNodes, MIN_DISTANCE) &&
-                            !isTooCloseToOtherTopics(adjustedPosition, topicRoot, allNodes, MIN_TOPIC_DISTANCE)) {
-                            return adjustedPosition;
-                        }
-                    }
-                }
-            }
-        }
-        // Final check - if fallback still overlaps, use systematic search
-        if (hasOverlapWithAnyNode(fallback, parent.id, allNodes, MIN_DISTANCE)) {
-            const finalPosition = findNonOverlappingPosition(parent, parent.id, allNodes, MIN_DISTANCE, 5000);
-            if (finalPosition) {
-                return finalPosition;
-            }
-        }
-        return fallback;
+        // For deeper level nodes, try to extend in a logical direction
+        // Calculate angle based on sibling count with some variation
+        const baseAngle = siblings.length * 45 + (Math.random() - 0.5) * 30;
+        return findSafePosition(parent, allNodes, baseAngle, false); // Pass false for isFirstLevel
     }
 }
-export function getNodeFamily(nodeId, nodes) {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node)
-        return [];
-    // Get all siblings (nodes with same parent)
-    return nodes.filter((n) => n.parentId === node.parentId).map((n) => n.id);
+/**
+ * Simple function to push overlapping nodes away from a new position
+ */
+export function adjustNodesForNewNode(newNodePosition, newNodeId, allNodes) {
+    const adjustedNodes = [...allNodes];
+    // Find any nodes that would overlap with the new position
+    for (let i = 0; i < adjustedNodes.length; i++) {
+        const node = adjustedNodes[i];
+        const distance = Math.sqrt(Math.pow(node.x - newNodePosition.x, 2) + Math.pow(node.y - newNodePosition.y, 2));
+        if (distance < MIN_DISTANCE) {
+            // Push this node away by finding a new safe position
+            const pushDirection = Math.atan2(node.y - newNodePosition.y, node.x - newNodePosition.x);
+            const pushDistance = MIN_DISTANCE + 50; // Extra padding
+            const newPosition = {
+                x: newNodePosition.x + Math.cos(pushDirection) * pushDistance,
+                y: newNodePosition.y + Math.sin(pushDirection) * pushDistance,
+            };
+            // Check if this node is a first-level node (child of center)
+            const parentNode = adjustedNodes.find(n => n.id === node.parentId);
+            const isNodeFirstLevel = parentNode?.parentId === null;
+            // If the pushed position would still collide, find a safe spot
+            if (hasCollision(newPosition, adjustedNodes, node.id, isNodeFirstLevel)) {
+                const parentNode = adjustedNodes.find(n => n.id === node.parentId);
+                if (parentNode) {
+                    // Check if this is a first-level node (child of center)
+                    const isNodeFirstLevel = parentNode.parentId === null;
+                    const safePosition = findSafePosition(parentNode, adjustedNodes.filter(n => n.id !== node.id), undefined, isNodeFirstLevel);
+                    adjustedNodes[i] = { ...node, x: safePosition.x, y: safePosition.y };
+                }
+                else {
+                    adjustedNodes[i] = { ...node, x: newPosition.x, y: newPosition.y };
+                }
+            }
+            else {
+                adjustedNodes[i] = { ...node, x: newPosition.x, y: newPosition.y };
+            }
+        }
+    }
+    return adjustedNodes;
+}
+/**
+ * Final validation to ensure no overlaps exist
+ */
+export function validateAndFixOverlaps(nodes) {
+    const fixedNodes = [...nodes];
+    // Check each node against all others
+    for (let i = 0; i < fixedNodes.length; i++) {
+        const currentNode = fixedNodes[i];
+        for (let j = i + 1; j < fixedNodes.length; j++) {
+            const otherNode = fixedNodes[j];
+            const distance = Math.sqrt(Math.pow(currentNode.x - otherNode.x, 2) + Math.pow(currentNode.y - otherNode.y, 2));
+            if (distance < MIN_DISTANCE) {
+                // Find parent of the current node to reposition it properly
+                const parentNode = fixedNodes.find(n => n.id === currentNode.parentId);
+                if (parentNode) {
+                    // Check if this is a first-level node (child of center)
+                    const isCurrentFirstLevel = parentNode.parentId === null;
+                    const newPosition = findSafePosition(parentNode, fixedNodes.filter(n => n.id !== currentNode.id), undefined, isCurrentFirstLevel);
+                    fixedNodes[i] = { ...currentNode, x: newPosition.x, y: newPosition.y };
+                }
+                else {
+                    // If no parent, just push it away
+                    const pushDirection = Math.atan2(currentNode.y - otherNode.y, currentNode.x - otherNode.x);
+                    const pushDistance = MIN_DISTANCE + 50;
+                    fixedNodes[i] = {
+                        ...currentNode,
+                        x: otherNode.x + Math.cos(pushDirection) * pushDistance,
+                        y: otherNode.y + Math.sin(pushDirection) * pushDistance,
+                    };
+                }
+                break; // Move to next node after fixing this one
+            }
+        }
+    }
+    return fixedNodes;
+}
+/**
+ * Get the center node from a list of nodes
+ */
+export function getCenterNode(nodes) {
+    return nodes.find(node => node.parentId === null) || null;
+}
+/**
+ * Calculate the bounding box of all nodes
+ */
+export function getNodesBoundingBox(nodes) {
+    if (nodes.length === 0) {
+        return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0, centerX: 0, centerY: 0 };
+    }
+    const minX = Math.min(...nodes.map(n => n.x - NODE_WIDTH / 2));
+    const maxX = Math.max(...nodes.map(n => n.x + NODE_WIDTH / 2));
+    const minY = Math.min(...nodes.map(n => n.y - NODE_HEIGHT / 2));
+    const maxY = Math.max(...nodes.map(n => n.y + NODE_HEIGHT / 2));
+    return {
+        minX,
+        maxX,
+        minY,
+        maxY,
+        width: maxX - minX,
+        height: maxY - minY,
+        centerX: (minX + maxX) / 2,
+        centerY: (minY + maxY) / 2
+    };
+}
+/**
+ * Debug function to check for overlapping nodes
+ */
+export function findOverlappingNodes(nodes) {
+    const overlaps = [];
+    for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+            const node1 = nodes[i];
+            const node2 = nodes[j];
+            const distance = Math.sqrt(Math.pow(node1.x - node2.x, 2) + Math.pow(node1.y - node2.y, 2));
+            if (distance < MIN_DISTANCE) {
+                overlaps.push({ node1, node2, distance });
+            }
+        }
+    }
+    return overlaps;
 }
