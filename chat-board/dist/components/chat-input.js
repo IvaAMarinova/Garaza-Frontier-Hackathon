@@ -2,7 +2,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useRef, useEffect } from "react";
 import { Send } from "lucide-react";
-export default function ChatInput() {
+export default function ChatInput({ onSend, isCentered = false }) {
     const [message, setMessage] = useState("");
     const textareaRef = useRef(null);
     // Auto-resize textarea
@@ -14,13 +14,19 @@ export default function ChatInput() {
     }, [message]);
     const handleSend = () => {
         if (message.trim()) {
+            const messageToSend = message.trim();
             setMessage("");
             if (textareaRef.current) {
                 textareaRef.current.style.height = "auto";
             }
+            if (onSend) {
+                onSend(messageToSend);
+            }
         }
     };
-    return (_jsx("div", { className: "fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-4 z-50", children: _jsx("div", { className: "w-full max-w-3xl", children: _jsxs("div", { className: "relative flex items-end gap-2 bg-card border border-border rounded-2xl shadow-lg p-2", children: [_jsx("textarea", { ref: textareaRef, value: message, onChange: (e) => setMessage(e.target.value), placeholder: "Message...", className: "flex-1 resize-none bg-transparent border-none outline-none px-4 py-3 text-foreground placeholder:text-muted-foreground max-h-32 overflow-y-auto", rows: 1, onKeyDown: (e) => {
+    return (_jsx("div", { className: `fixed left-0 right-0 flex justify-center px-4 z-50 transition-all duration-500 ease-in-out ${isCentered
+            ? "top-1/2 -translate-y-1/2 pb-0"
+            : "bottom-0 pb-4"}`, children: _jsx("div", { className: "w-full max-w-3xl", children: _jsxs("div", { className: "relative flex items-end gap-2 bg-card border border-border rounded-2xl shadow-lg p-2", children: [_jsx("textarea", { ref: textareaRef, value: message, onChange: (e) => setMessage(e.target.value), placeholder: "Message...", className: "flex-1 resize-none bg-transparent border-none outline-none px-4 py-3 text-foreground placeholder:text-muted-foreground max-h-32 overflow-y-auto", rows: 1, onKeyDown: (e) => {
                             if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();
                                 handleSend();

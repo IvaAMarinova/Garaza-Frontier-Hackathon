@@ -47,8 +47,31 @@ export interface ConceptGraphResponse {
         updated_ts: number;
     };
 }
+export interface OverlayModel {
+    id: string;
+    concept_id: string;
+    depth: number;
+    content_markdown: string;
+    doc_links: string[];
+}
+export interface FocusModel {
+    interest_score: number;
+    confusion_score: number;
+    mastery_score: number;
+    unknownness: number;
+}
+export interface GoalMetaModel {
+    global_answer_depth: number;
+    last_updated_ts: number;
+    last_refined_concepts: string[];
+}
 export interface GoalResponse {
-    goal: string;
+    id: string;
+    goal_statement: string;
+    answer_markdown: string;
+    overlays: OverlayModel[];
+    focus: Record<string, FocusModel>;
+    meta: GoalMetaModel;
 }
 export declare function createSession(): Promise<CreateSessionResponse>;
 export declare function getSessionState(sessionId: string): Promise<SessionState>;
@@ -56,12 +79,16 @@ export declare function generateContent(sessionId: string, request: GenerateRequ
 export declare function buildConceptGraph(sessionId: string, mode?: 'full' | 'incremental'): Promise<ConceptGraphResponse>;
 export declare function getConceptGraph(sessionId: string): Promise<ConceptGraphResponse>;
 export declare function getGoal(sessionId: string): Promise<GoalResponse>;
-export declare function initializeTicTacToeSession(): Promise<{
+export declare function initializeTicTacToeSession(prompt?: string): Promise<{
     sessionId: string;
     conceptGraph: ConceptGraphResponse;
 }>;
 export declare function convertConceptGraphToNodes(conceptGraph: ConceptGraphResponse): {
-    centerNode: NodeContent;
-    childNodes: NodeContent[];
+    centerNode: NodeContent & {
+        conceptId: string;
+    };
+    childNodes: Array<NodeContent & {
+        conceptId: string;
+    }>;
 };
 //# sourceMappingURL=api.d.ts.map

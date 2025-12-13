@@ -14,6 +14,7 @@ export interface Node {
   y: number
   color: string
   parentId: string | null
+  conceptId?: string
 }
 
 export interface Position {
@@ -32,5 +33,5 @@ export interface NodeBounds {
 }
 
 export interface Goal {
-  text: string
+  goal_statement: string
 }

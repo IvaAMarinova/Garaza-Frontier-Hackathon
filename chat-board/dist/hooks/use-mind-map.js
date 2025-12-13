@@ -13,21 +13,25 @@ export function useMindMap(initialText) {
     const [sessionId, setSessionId] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [goal, setGoal] = useState(null);
+    const containerRef = useRef(null);
+    const initializationInProgress = useRef(false);
     // Initialize with tic tac toe concept graph
     useEffect(() => {
-        if (containerRef.current && !isInitialized) {
+        if (containerRef.current && !isInitialized && !initializationInProgress.current) {
+            initializationInProgress.current = true;
             const rect = containerRef.current.getBoundingClientRect();
             console.log('Container rect:', rect);
-            console.log('Initial zoom level:', zoomLevel);
             const initializeWithBackend = async () => {
                 setIsLoading(true);
                 try {
-                    const { sessionId: newSessionId, conceptGraph } = await initializeTicTacToeSession();
+                    // Use initialText (user input) as the prompt, or fallback to default
+                    const prompt = initialText || undefined;
+                    const { sessionId: newSessionId, conceptGraph } = await initializeTicTacToeSession(prompt);
                     setSessionId(newSessionId);
                     // Fetch the goal after getting the session
                     try {
                         const goalResponse = await getGoal(newSessionId);
-                        setGoal({ text: goalResponse.goal });
+                        setGoal(goalResponse);
                     }
                     catch (error) {
                         console.error('Failed to fetch goal:', error);
@@ -40,6 +44,7 @@ export function useMindMap(initialText) {
                         y: rect.height / 2,
                         content: centerNode,
                         color: CENTER_COLOR.light,
+                        conceptId: centerNode.conceptId,
                     };
                     // Create child nodes using proper positioning logic
                     const childNodeObjs = [];
@@ -54,6 +59,7 @@ export function useMindMap(initialText) {
                             y: position.y,
                             color: NODE_COLORS[index % NODE_COLORS.length].light,
                             parentId: centerNodeObj.id,
+                            conceptId: content.conceptId,
                         };
                         childNodeObjs.push(childNode);
                         allNodes.push(childNode); // Add to all nodes for next iteration
@@ -92,12 +98,14 @@ export function useMindMap(initialText) {
                             y: rect.height / 2,
                             content: { text: initialText || "Tic Tac Toe Game", header: "Game Concept" },
                             color: CENTER_COLOR.light,
+                            conceptId: "fallback",
                         },
                     ]);
                 }
                 finally {
                     setIsLoading(false);
                     setIsInitialized(true);
+                    initializationInProgress.current = false;
                 }
             };
             initializeWithBackend();
@@ -109,7 +117,6 @@ export function useMindMap(initialText) {
     const [isPanningBackground, setIsPanningBackground] = useState(false);
     const [backgroundOffset, setBackgroundOffset] = useState({ x: 0, y: 0 });
     const [panStartPos, setPanStartPos] = useState({ x: 0, y: 0 });
-    const containerRef = useRef(null);
     // Zoom state
     const [zoomLevel, setZoomLevel] = useState(1);
     const MIN_ZOOM = 0.1;
@@ -200,7 +207,7 @@ export function useMindMap(initialText) {
             // Fetch updated goal after adding new node
             if (sessionId) {
                 getGoal(sessionId).then(goalResponse => {
-                    setGoal({ text: goalResponse.goal });
+                    setGoal(goalResponse);
                 }).catch(error => {
                     console.error('Failed to fetch updated goal:', error);
                 });

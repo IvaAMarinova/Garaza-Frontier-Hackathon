@@ -75,12 +75,12 @@ export async function getGoal(sessionId) {
     }
     return response.json();
 }
-export async function initializeTicTacToeSession() {
+export async function initializeTicTacToeSession(prompt) {
     try {
         // Create a new session
         const { session_id } = await createSession();
-        // Generate initial tic tac toe context
-        const ticTacToePrompt = `Let's create a tic tac toe game. I want to understand the game mechanics, rules, strategies, and implementation details. 
+        // Use provided prompt or default tic tac toe prompt
+        const ticTacToePrompt = prompt || `Let's create a tic tac toe game. I want to understand the game mechanics, rules, strategies, and implementation details. 
     
     Key concepts to explore:
     - Game rules and winning conditions
@@ -108,7 +108,7 @@ export function convertConceptGraphToNodes(conceptGraph) {
     const { concepts, edges } = conceptGraph;
     if (concepts.length === 0) {
         return {
-            centerNode: { text: "Tic Tac Toe Game", header: "Game Concept" },
+            centerNode: { text: "Tic Tac Toe Game", header: "Game Concept", conceptId: "fallback" },
             childNodes: []
         };
     }
@@ -127,7 +127,8 @@ export function convertConceptGraphToNodes(conceptGraph) {
     const centerConcept = sortedConcepts[0];
     const centerNode = {
         text: centerConcept.summary,
-        header: centerConcept.label
+        header: centerConcept.label,
+        conceptId: centerConcept.id
     };
     // Find direct children of the center concept
     const childConceptIds = edges
@@ -139,7 +140,8 @@ export function convertConceptGraphToNodes(conceptGraph) {
         .slice(0, 5) // Limit to first 5 children
         .map(concept => ({
         text: concept.summary,
-        header: concept.label
+        header: concept.label,
+        conceptId: concept.id
     }));
     return { centerNode, childNodes };
 }
