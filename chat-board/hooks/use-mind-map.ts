@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import type { Node, NodeContent } from "../lib/types"
 import { NODE_COLORS, CENTER_COLOR } from "../lib/colors"
-import { calculateNewNodePosition, adjustNodesForNewNode, MIN_DISTANCE } from "../lib/positioning"
+import { calculateNewNodePosition, adjustNodesForNewNode, validateAndFixOverlaps } from "../lib/positioning"
 import { INITIAL_CENTER_NODE } from "../lib/constants"
 import { initializeTicTacToeSession, convertConceptGraphToNodes } from "../lib/api"
 export function useMindMap(initialText?: string) {
@@ -65,7 +65,11 @@ export function useMindMap(initialText?: string) {
           // Add child nodes one by one with delays
           childNodeObjs.forEach((childNode, index) => {
             setTimeout(() => {
-              setNodes(prevNodes => [...prevNodes, childNode])
+              setNodes(prevNodes => {
+                const newNodes = [...prevNodes, childNode]
+                // Validate positions to ensure no overlaps
+                return validateAndFixOverlaps(newNodes)
+              })
               // Add to newly created nodes for animation
               setNewlyCreatedNodes(prev => new Set([...prev, childNode.id]))
               
@@ -184,6 +188,7 @@ export function useMindMap(initialText?: string) {
       }
 
       const position = calculateNewNodePosition(parent, siblings, prevNodes)
+      
       const newNode: Node = {
         id: crypto.randomUUID(),
         content,
@@ -195,6 +200,10 @@ export function useMindMap(initialText?: string) {
 
       // Adjust existing nodes to make room for the new node
       const adjustedNodes = adjustNodesForNewNode(position, newNode.id, prevNodes)
+      const finalNodes = [...adjustedNodes, newNode]
+      
+      // Validate and fix any remaining overlaps
+      const validatedNodes = validateAndFixOverlaps(finalNodes)
 
       // Add creation animation
       setNewlyCreatedNodes((prev) => new Set([...prev, newNode.id]))
@@ -208,7 +217,7 @@ export function useMindMap(initialText?: string) {
         })
       }, 300)
 
-      return [...adjustedNodes, newNode]
+      return validatedNodes
     })
   }, [])
 
@@ -390,72 +399,50 @@ export function useMindMap(initialText?: string) {
     }
   }, [zoomIn, zoomOut, resetZoom])
 
+  // Optimized mouse move handler for smooth dragging
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (draggingId) {
+      // Node dragging - convert screen coordinates to canvas coordinates (accounting for zoom)
+      const newX = (e.clientX - dragOffset.x - backgroundOffset.x) / zoomLevel
+      const newY = (e.clientY - dragOffset.y - backgroundOffset.y) / zoomLevel
+
+      // Update nodes immediately for smooth connection lines
+      setNodes((prev) => {
+        const draggingNode = prev.find((n) => n.id === draggingId)
+        if (!draggingNode) return prev
+        
+        let updatedNodes = [...prev]
+        
+        // Update the dragging node position first
+        updatedNodes = updatedNodes.map((n) =>
+          n.id === draggingId ? { ...n, x: newX, y: newY } : n
+        )
+        
+        // Use the improved collision detection and resolution system
+        updatedNodes = adjustNodesForNewNode(
+          { x: newX, y: newY },
+          draggingId,
+          updatedNodes.filter(n => n.id !== draggingId)
+        ).concat(updatedNodes.filter(n => n.id === draggingId))
+        
+        return updatedNodes
+      })
+    } else if (isPanningBackground) {
+      // Background panning
+      const deltaX = e.clientX - panStartPos.x
+      const deltaY = e.clientY - panStartPos.y
+
+      setBackgroundOffset((prev) => ({
+        x: prev.x + deltaX,
+        y: prev.y + deltaY,
+      }))
+
+      setPanStartPos({ x: e.clientX, y: e.clientY })
+    }
+  }, [draggingId, dragOffset, backgroundOffset, zoomLevel, isPanningBackground, panStartPos])
+
   // Use document-level mouse events for proper panning/dragging
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (draggingId) {
-        // Node dragging - convert screen coordinates to canvas coordinates (accounting for zoom)
-        const newX = (e.clientX - dragOffset.x - backgroundOffset.x) / zoomLevel
-        const newY = (e.clientY - dragOffset.y - backgroundOffset.y) / zoomLevel
-
-        // Check for overlaps and push other nodes away if needed
-        
-        setNodes((prev) => {
-          const draggingNode = prev.find((n) => n.id === draggingId)
-          if (!draggingNode) return prev
-          
-          let updatedNodes = [...prev]
-          
-          // Check for overlaps and push other nodes away
-          const overlappingNodes = prev.filter((node) => {
-            if (node.id === draggingId) return false
-            const distance = Math.sqrt(
-              Math.pow(node.x - newX, 2) + Math.pow(node.y - newY, 2)
-            )
-            return distance < MIN_DISTANCE
-          })
-
-          // Push overlapping nodes away
-          overlappingNodes.forEach((overlappingNode) => {
-            const dx = overlappingNode.x - newX
-            const dy = overlappingNode.y - newY
-            const currentDistance = Math.sqrt(dx * dx + dy * dy)
-            
-            if (currentDistance > 0) {
-              // Calculate push direction (away from dragging node)
-              const pushDistance = MIN_DISTANCE - currentDistance + 10 // Extra padding
-              const pushX = (dx / currentDistance) * pushDistance
-              const pushY = (dy / currentDistance) * pushDistance
-              
-              // Update the overlapping node's position
-              updatedNodes = updatedNodes.map((n) =>
-                n.id === overlappingNode.id
-                  ? { ...n, x: overlappingNode.x + pushX, y: overlappingNode.y + pushY }
-                  : n
-              )
-            }
-          })
-
-          // Update the dragging node position
-          updatedNodes = updatedNodes.map((n) =>
-            n.id === draggingId ? { ...n, x: newX, y: newY } : n
-          )
-          
-          return updatedNodes
-        })
-      } else if (isPanningBackground) {
-        // Background panning
-        const deltaX = e.clientX - panStartPos.x
-        const deltaY = e.clientY - panStartPos.y
-
-        setBackgroundOffset((prev) => ({
-          x: prev.x + deltaX,
-          y: prev.y + deltaY,
-        }))
-
-        setPanStartPos({ x: e.clientX, y: e.clientY })
-      }
-    }
 
     const handleMouseUp = () => {
       setDraggingId(null)
@@ -470,7 +457,7 @@ export function useMindMap(initialText?: string) {
         document.removeEventListener("mouseup", handleMouseUp)
       }
     }
-  }, [draggingId, dragOffset, isPanningBackground, backgroundOffset, panStartPos, zoomLevel])
+  }, [draggingId, isPanningBackground, handleMouseMove])
 
   const handleBackgroundMouseDown = useCallback((e: React.MouseEvent) => {
     // Start panning if clicking on background (not on a node or its children)
@@ -500,7 +487,7 @@ export function useMindMap(initialText?: string) {
   }, [])
 
 
-  // Memoized connections for performance
+  // Memoized connections for performance - recalculate during dragging for smooth lines
   const connections = useMemo(() => {
     return nodes
       .map((node) => {
@@ -529,7 +516,7 @@ export function useMindMap(initialText?: string) {
         }
       })
       .filter(Boolean)
-  }, [nodes, isDarkMode])
+  }, [nodes, isDarkMode, draggingId])
 
   return {
     // State

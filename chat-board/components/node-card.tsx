@@ -55,28 +55,34 @@ export function NodeCard({
 
   return (
     <div
-      className={`group relative px-4 py-3 rounded-2xl border-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg ${node.color} ${
+      className={`group relative px-2 py-2 rounded-xl border-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg select-none ${node.color} ${
         isCenter
-          ? "px-6 py-5 font-semibold text-lg min-w-[200px]"
-          : "min-w-[180px]"
-      } ${isDragging ? "cursor-grabbing shadow-2xl scale-105 z-50" : "cursor-grab"} ${
+          ? "px-4 py-3 font-semibold text-base min-w-[80px]"
+          : "min-w-[60px] text-sm"
+      } ${isDragging ? "cursor-grabbing shadow-2xl scale-105 z-50 node-dragging" : "cursor-grab"} ${
         isUpdated ? "ring-1 ring-green-400/30" : ""
       }`}
       onMouseDown={(e) => onMouseDown(e, node.id)}
       aria-label={`Draggable node: ${node.content.header || node.content.text}`}
     >
+      {/* Invisible drag overlay to ensure entire node is draggable */}
       <div
-        className="space-y-2"
-        onMouseDown={(e) => e.stopPropagation()}
+        className="absolute inset-0 z-0"
+        onMouseDown={(e) => onMouseDown(e, node.id)}
+        aria-hidden="true"
+      />
+      
+      <div
+        className="relative z-10 space-y-2 select-none"
         role="region"
         aria-label="Node content"
       >
         {node.content.header && (
-          <div className="font-semibold text-sm opacity-70 dark:opacity-80">
+          <div className="font-semibold text-sm opacity-70 dark:opacity-80 select-none">
             {node.content.header}
           </div>
         )}
-        <div className="whitespace-pre-wrap leading-relaxed">
+        <div className="whitespace-pre-wrap leading-relaxed select-none">
           {node.content.text}
         </div>
         {node.content.codeBlock && (
@@ -88,7 +94,7 @@ export function NodeCard({
       </div>
 
       <div
-        className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200"
+        className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 z-20"
         style={{
           opacity: isNewlyCreated ? 0 : undefined,
           animation: isNewlyCreated
@@ -126,6 +132,7 @@ export function NodeCard({
         <div
           className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-3 min-w-[250px]"
           onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           <input
             type="text"

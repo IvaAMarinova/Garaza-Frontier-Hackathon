@@ -36,7 +36,7 @@ export default function MindMap({ initialText }: MindMapProps) {
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300 ${isPanningBackground ? "cursor-grabbing" : "cursor-grab"}`}
+      className={`mind-map-canvas relative w-full h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300 ${isPanningBackground ? "cursor-grabbing" : "cursor-grab"}`}
       onMouseDown={handleBackgroundMouseDown}
       role="application"
       aria-label="Mind map canvas - drag nodes to move them or pan background"
@@ -123,7 +123,7 @@ export default function MindMap({ initialText }: MindMapProps) {
       >
         {/* Connection Lines - SVG covers large canvas area */}
         <svg
-          className="absolute pointer-events-none"
+          className={`absolute pointer-events-none ${draggingId ? "dragging-active" : ""}`}
           style={{
             left: "-100000px",
             top: "-100000px",
@@ -135,6 +135,7 @@ export default function MindMap({ initialText }: MindMapProps) {
         >
           {connections.map((connection) => {
             const isNewConnection = newlyCreatedNodes.has(connection!.id)
+            
             return (
               <g key={`connection-${connection!.id}`}>
                 <path
@@ -142,7 +143,7 @@ export default function MindMap({ initialText }: MindMapProps) {
                   stroke={connection!.strokeColor}
                   strokeWidth="2"
                   fill="none"
-                  className="transition-all duration-300"
+                  className={draggingId ? "" : "transition-all duration-300"}
                   style={{
                     opacity: isNewConnection ? 0 : 1,
                     animation: isNewConnection
