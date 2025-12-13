@@ -55,9 +55,37 @@ export interface ConceptGraphResponse {
   }
 }
 
-export interface GoalResponse {
-  goal: string
+export interface OverlayModel {
+  id: string
+  concept_id: string
+  depth: number
+  content_markdown: string
+  doc_links: string[]
 }
+
+export interface FocusModel {
+  interest_score: number
+  confusion_score: number
+  mastery_score: number
+  unknownness: number
+}
+
+export interface GoalMetaModel {
+  global_answer_depth: number
+  last_updated_ts: number
+  last_refined_concepts: string[]
+}
+
+export interface GoalResponse {
+  id: string
+  goal_statement: string
+  answer_markdown: string
+  overlays: OverlayModel[]
+  focus: Record<string, FocusModel>
+  meta: GoalMetaModel
+}
+
+
 
 export async function createSession(): Promise<CreateSessionResponse> {
   const url = `${API_BASE_URL}/sessions`
@@ -186,12 +214,15 @@ export async function initializeTicTacToeSession(): Promise<{ sessionId: string;
   }
 }
 
-export function convertConceptGraphToNodes(conceptGraph: ConceptGraphResponse): { centerNode: NodeContent; childNodes: NodeContent[] } {
+export function convertConceptGraphToNodes(conceptGraph: ConceptGraphResponse): { 
+  centerNode: NodeContent & { conceptId: string }; 
+  childNodes: Array<NodeContent & { conceptId: string }> 
+} {
   const { concepts, edges } = conceptGraph
   
   if (concepts.length === 0) {
     return {
-      centerNode: { text: "Tic Tac Toe Game", header: "Game Concept" },
+      centerNode: { text: "Tic Tac Toe Game", header: "Game Concept", conceptId: "fallback" },
       childNodes: []
     }
   }
@@ -212,9 +243,10 @@ export function convertConceptGraphToNodes(conceptGraph: ConceptGraphResponse): 
   })
 
   const centerConcept = sortedConcepts[0]
-  const centerNode: NodeContent = {
+  const centerNode: NodeContent & { conceptId: string } = {
     text: centerConcept.summary,
-    header: centerConcept.label
+    header: centerConcept.label,
+    conceptId: centerConcept.id
   }
 
   // Find direct children of the center concept
@@ -222,13 +254,14 @@ export function convertConceptGraphToNodes(conceptGraph: ConceptGraphResponse): 
     .filter(edge => edge.from_concept_id === centerConcept.id)
     .map(edge => edge.to_concept_id)
 
-  const childNodes: NodeContent[] = childConceptIds
+  const childNodes: Array<NodeContent & { conceptId: string }> = childConceptIds
     .map(id => concepts.find(c => c.id === id))
     .filter(Boolean)
     .slice(0, 5) // Limit to first 5 children
     .map(concept => ({
       text: concept!.summary,
-      header: concept!.label
+      header: concept!.label,
+      conceptId: concept!.id
     }))
 
   return { centerNode, childNodes }

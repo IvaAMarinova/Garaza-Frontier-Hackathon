@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Plus, Sparkles } from "lucide-react"
 import type { Node, NodeContent } from "../lib/types"
 import { CodeBlock } from "./code-block"
-import { LAYOUT_CONSTANTS } from "../lib/constants"
 
 interface NodeCardProps {
   node: Node
@@ -72,7 +71,7 @@ export function NodeCard({
         onMouseDown={(e) => onMouseDown(e, node.id)}
         aria-hidden="true"
       />
-      
+
       <div
         className="relative z-10 space-y-2 select-none"
         role="region"
@@ -127,6 +126,7 @@ export function NodeCard({
         >
           <Sparkles className="w-3 h-3 text-slate-600 dark:text-slate-300" />
         </button>
+
       </div>
 
       {showTextInput && (

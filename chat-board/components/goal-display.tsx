@@ -49,7 +49,7 @@ export default function GoalDisplay({ goal, onFinish }: GoalDisplayProps) {
           
           <div className={`transition-all duration-300 ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-12 opacity-75'} overflow-hidden`}>
             <div className="whitespace-pre-wrap leading-relaxed select-none text-sm">
-              {goal.text}
+              {goal.goal_statement}
             </div>
           </div>
           

@@ -34,7 +34,7 @@ export function useMindMap(initialText?: string) {
           // Fetch the goal after getting the session
           try {
             const goalResponse = await getGoal(newSessionId)
-            setGoal({ text: goalResponse.goal })
+            setGoal(goalResponse)
           } catch (error) {
             console.error('Failed to fetch goal:', error)
           }
@@ -48,6 +48,7 @@ export function useMindMap(initialText?: string) {
             y: rect.height / 2,
             content: centerNode,
             color: CENTER_COLOR.light,
+            conceptId: centerNode.conceptId,
           }
           
           // Create child nodes using proper positioning logic
@@ -65,6 +66,7 @@ export function useMindMap(initialText?: string) {
               y: position.y,
               color: NODE_COLORS[index % NODE_COLORS.length].light,
               parentId: centerNodeObj.id,
+              conceptId: content.conceptId,
             }
             
             childNodeObjs.push(childNode)
@@ -106,6 +108,7 @@ export function useMindMap(initialText?: string) {
               y: rect.height / 2,
               content: { text: initialText || "Tic Tac Toe Game", header: "Game Concept" },
               color: CENTER_COLOR.light,
+              conceptId: "fallback",
             },
           ])
         } finally {
@@ -246,7 +249,7 @@ export function useMindMap(initialText?: string) {
       // Fetch updated goal after adding new node
       if (sessionId) {
         getGoal(sessionId).then(goalResponse => {
-          setGoal({ text: goalResponse.goal })
+          setGoal(goalResponse)
         }).catch(error => {
           console.error('Failed to fetch updated goal:', error)
         })
