@@ -472,16 +472,6 @@ export function useMindMap(initialText?: string) {
     }
   }, [draggingId, dragOffset, isPanningBackground, backgroundOffset, panStartPos, zoomLevel])
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    // This is kept for compatibility but document events handle the actual work
-    e.preventDefault()
-  }, [])
-
-  const handleMouseUp = useCallback(() => {
-    setDraggingId(null)
-    setIsPanningBackground(false)
-  }, [])
-
   const handleBackgroundMouseDown = useCallback((e: React.MouseEvent) => {
     // Start panning if clicking on background (not on a node or its children)
     const target = e.target as HTMLElement
@@ -567,8 +557,6 @@ export function useMindMap(initialText?: string) {
     resetZoom,
 
     handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
     handleBackgroundMouseDown,
   }
 }

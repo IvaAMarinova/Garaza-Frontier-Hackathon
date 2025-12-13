@@ -10,7 +10,6 @@ interface MindMapProps {
 
 export default function MindMap({ initialText }: MindMapProps) {
   const {
-    isDarkMode,
     nodes,
     draggingId,
     containerRef,
@@ -31,8 +30,6 @@ export default function MindMap({ initialText }: MindMapProps) {
     zoomOut,
     resetZoom,
     handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
     handleBackgroundMouseDown,
   } = useMindMap(initialText)
 
