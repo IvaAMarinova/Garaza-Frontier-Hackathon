@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from app.api import build_router
 from app.chat_service import ChatService
 from app.concept_graph import ConceptGraphService
+from app.goal_node import GoalNodeService
 from app.dev_pages import build_dev_router
 from app.openai_client import OpenAIClient
 from app.store import InMemoryChatStore
@@ -14,8 +15,9 @@ store = InMemoryChatStore()
 llm = OpenAIClient()
 chat = ChatService(store=store, llm=llm)
 concept_graphs = ConceptGraphService(store=store, llm=llm)
+goal_nodes = GoalNodeService(store=store, concept_graphs=concept_graphs, llm=llm)
 
-app.include_router(build_router(chat, concept_graphs))
+app.include_router(build_router(chat, concept_graphs, goal_nodes))
 app.include_router(build_dev_router())
 
 @app.get("/health")

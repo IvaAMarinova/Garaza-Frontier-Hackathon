@@ -1,4 +1,4 @@
-from typing import Dict, Literal
+from typing import Dict, Literal, Optional
 
 from ..openai_client import OpenAIClient
 from ..store import InMemoryChatStore
@@ -61,3 +61,27 @@ class ConceptGraphService:
     def export_graph(self, session_id: str) -> Dict[str, object]:
         graph = self.get_graph(session_id)
         return graph.to_dict()
+
+    def apply_focus_data(
+        self,
+        session_id: str,
+        *,
+        concept_id: str,
+        weight: Optional[float] = None,
+        expansion: Optional[str] = None,
+    ) -> None:
+        if not self._chat_store.get_session(session_id):
+            raise KeyError("session not found")
+        graph = self._graphs.ensure(session_id)
+        updated = graph.apply_focus(concept_id, weight=weight, expansion=expansion)
+        if not updated:
+            raise KeyError("concept not found")
+        graph.meta.touch()
+        self._graphs.upsert(session_id, graph)
+
+    def get_concept(self, session_id: str, concept_id: str) -> Dict[str, object]:
+        graph = self.get_graph(session_id)
+        concept = graph.find_concept(concept_id)
+        if not concept:
+            raise KeyError("concept not found")
+        return concept.to_dict()

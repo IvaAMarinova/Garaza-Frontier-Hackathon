@@ -33,7 +33,7 @@ class OpenAIClient:
         *,
         model: str,
         messages: List[Dict[str, Any]],
-        temperature: float = 0.0,
+        temperature: float = None,
         max_output_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Call OpenAI and parse the response body as JSON."""

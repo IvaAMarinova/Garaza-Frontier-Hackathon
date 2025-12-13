@@ -6,12 +6,13 @@ from .models import ChatMessage
 from .openai_client import OpenAIClient
 from .store import InMemoryChatStore
 from .chat_relations import RelationNode, build_relational_view
+from .prompts import CHAT_SYSTEM_PROMPT
 
 class ChatService:
     def __init__(self, store: InMemoryChatStore, llm: OpenAIClient) -> None:
         self._store = store
         self._llm = llm
-        self._initial_context = load_initial_context()
+        self._doc_context = load_initial_context()
 
     def create_session(self) -> str:
         return self._store.create_session()
@@ -19,11 +20,13 @@ class ChatService:
     def get_state(self, session_id: str):
         return self._store.get_session(session_id)
 
-    def _build_context(self, session_id: str, system_prompt: Optional[str], include_initial_context: bool) -> List[dict]:
+    def _build_context(self, session_id: str, system_prompt: Optional[str]) -> List[dict]:
         msgs = self._store.list_messages(session_id)[-CHAT_MAX_HISTORY:]
-        out: List[dict] = []
-        if include_initial_context and self._initial_context:
-            out.append({"role": "system", "content": self._initial_context})
+        out: List[dict] = [
+            {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+        ]
+        if self._doc_context:
+            out.append({"role": "system", "content": self._doc_context})
         if system_prompt:
             out.append({"role": "system", "content": system_prompt})
         for m in msgs:
@@ -39,10 +42,8 @@ class ChatService:
         persist: bool,
         model: Optional[str],
     ) -> str:
-        is_first_turn = len(self._store.list_messages(session_id)) == 0
-
         self._store.append(session_id, ChatMessage(role="user", content=user_text))
-        context = self._build_context(session_id, system_prompt, include_initial_context=is_first_turn)
+        context = self._build_context(session_id, system_prompt)
         chosen_model = model or OPENAI_MODEL
         full = await self._llm.generate_text(model=chosen_model, messages=context)
 

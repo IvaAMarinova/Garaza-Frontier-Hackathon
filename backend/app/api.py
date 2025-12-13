@@ -6,12 +6,22 @@ from .models import (
     GenerateRequest,
     GenerateResponse,
     ConceptGraphBuildRequest,
+    ConceptNodeModel,
     ConceptGraphResponse,
+    GoalNodeInitRequest,
+    GoalNodeResponse,
+    GoalInteractionRequest,
+    ConceptExpandRequest,
 )
 from .chat_service import ChatService
 from .concept_graph import ConceptGraphService
+from .goal_node import GoalNodeService, InteractionEvent
 
-def build_router(chat: ChatService, concept_graphs: ConceptGraphService) -> APIRouter:
+def build_router(
+    chat: ChatService,
+    concept_graphs: ConceptGraphService,
+    goal_nodes: GoalNodeService,
+) -> APIRouter:
     router = APIRouter(prefix="/v1/chat", tags=["chat"])
 
     @router.post("/sessions", response_model=CreateSessionResponse)
@@ -58,5 +68,63 @@ def build_router(chat: ChatService, concept_graphs: ConceptGraphService) -> APIR
         except KeyError:
             raise HTTPException(status_code=404, detail="session not found")
         return ConceptGraphResponse(**data)
+
+    @router.post(
+        "/sessions/{session_id}/concept-graph/{concept_id}/expand",
+        response_model=ConceptNodeModel,
+    )
+    async def expand_concept(session_id: str, concept_id: str, req: ConceptExpandRequest):
+        try:
+            concept_graphs.apply_focus_data(
+                session_id,
+                concept_id=concept_id,
+                weight=req.weight,
+                expansion=req.expansion,
+            )
+        except KeyError as exc:
+            detail = "concept not found" if "concept" in str(exc) else "session not found"
+            raise HTTPException(status_code=404, detail=detail)
+
+        events = [
+            InteractionEvent(concept_id=concept_id, event="expand", strength=req.strength)
+        ]
+        try:
+            await goal_nodes.apply_interactions(session_id, events, auto_refine=req.auto_refine)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="session not found")
+
+        try:
+            concept = concept_graphs.get_concept(session_id, concept_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="concept not found")
+        return ConceptNodeModel(**concept)
+
+    @router.post("/sessions/{session_id}/goal", response_model=GoalNodeResponse)
+    async def initialize_goal_node(session_id: str, req: GoalNodeInitRequest):
+        try:
+            goal = await goal_nodes.initialize_goal(session_id, force=req.force)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="session not found")
+        return GoalNodeResponse(**goal_nodes.serialize(goal))
+
+    @router.get("/sessions/{session_id}/goal", response_model=GoalNodeResponse)
+    async def get_goal_node(session_id: str, create_if_missing: bool = True):
+        try:
+            goal = await goal_nodes.get_goal(session_id, create_if_missing=create_if_missing)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="goal node not found")
+        return GoalNodeResponse(**goal_nodes.serialize(goal))
+
+    @router.post("/sessions/{session_id}/goal/interactions", response_model=GoalNodeResponse)
+    async def record_goal_interactions(session_id: str, req: GoalInteractionRequest):
+        events = [
+            InteractionEvent(concept_id=event.concept_id, event=event.event, strength=event.strength)
+            for event in req.events
+        ]
+        try:
+            goal = await goal_nodes.apply_interactions(session_id, events, auto_refine=req.auto_refine)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="session not found")
+        return GoalNodeResponse(**goal_nodes.serialize(goal))
 
     return router
