@@ -1,4 +1,4 @@
-import type { Node, NodeContent } from "@/lib/types";
+import type { Node, NodeContent } from "../lib/types";
 interface NodeCardProps {
     node: Node;
     onAddChild: (id: string, content: NodeContent) => void;

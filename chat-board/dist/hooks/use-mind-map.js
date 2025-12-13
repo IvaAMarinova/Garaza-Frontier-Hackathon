@@ -3,16 +3,25 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.useMindMap = useMindMap;
 const react_1 = require("react");
-const colors_1 = require("@/lib/colors");
-const positioning_1 = require("@/lib/positioning");
-const constants_1 = require("@/lib/constants");
+const colors_1 = require("../lib/colors");
+const positioning_1 = require("../lib/positioning");
+const constants_1 = require("../lib/constants");
 function useMindMap(initialText) {
     // Theme state
     const [isDarkMode, setIsDarkMode] = (0, react_1.useState)(false);
-    // Node state
-    const [nodes, setNodes] = (0, react_1.useState)([
-        Object.assign(Object.assign({}, constants_1.INITIAL_CENTER_NODE), { content: { text: initialText || "" }, color: colors_1.CENTER_COLOR.light }),
-    ]);
+    // Node state - initialize center node at viewport center
+    const [nodes, setNodes] = (0, react_1.useState)([]);
+    const [isInitialized, setIsInitialized] = (0, react_1.useState)(false);
+    // Initialize center node position when container is ready
+    (0, react_1.useEffect)(() => {
+        if (containerRef.current && !isInitialized) {
+            const rect = containerRef.current.getBoundingClientRect();
+            setNodes([
+                Object.assign(Object.assign({}, constants_1.INITIAL_CENTER_NODE), { x: rect.width / 2, y: rect.height / 2, content: { text: initialText || "" }, color: colors_1.CENTER_COLOR.light }),
+            ]);
+            setIsInitialized(true);
+        }
+    }, [initialText, isInitialized]);
     // Drag state
     const [draggingId, setDraggingId] = (0, react_1.useState)(null);
     const [dragOffset, setDragOffset] = (0, react_1.useState)({ x: 0, y: 0 });
@@ -124,83 +133,113 @@ function useMindMap(initialText) {
     }, []);
     // Drag and drop
     const handleMouseDown = (0, react_1.useCallback)((e, nodeId) => {
+        // Stop propagation to prevent panning
+        e.stopPropagation();
         const node = nodes.find((n) => n.id === nodeId);
         if (!node || !containerRef.current)
             return;
         const rect = containerRef.current.getBoundingClientRect();
-        const nodeX = (node.x * rect.width) / 100;
-        const nodeY = (node.y * rect.height) / 100;
+        // Calculate node position in screen coordinates (accounting for pan offset)
+        const nodeX = node.x + backgroundOffset.x;
+        const nodeY = node.y + backgroundOffset.y;
         setDraggingId(nodeId);
         setDragOffset({
             x: e.clientX - nodeX,
             y: e.clientY - nodeY,
         });
-    }, [nodes]);
-    const handleMouseMove = (0, react_1.useCallback)((e) => {
-        if (!containerRef.current)
-            return;
-        e.preventDefault();
-        if (draggingId) {
-            // Node dragging
-            const rect = containerRef.current.getBoundingClientRect();
-            const newX = ((e.clientX - dragOffset.x) / rect.width) * 100;
-            const newY = ((e.clientY - dragOffset.y) / rect.height) * 100;
-            const clampedX = Math.max(constants_1.LAYOUT_CONSTANTS.DRAG_BOUNDARY.MIN, Math.min(constants_1.LAYOUT_CONSTANTS.DRAG_BOUNDARY.MAX, newX));
-            const clampedY = Math.max(constants_1.LAYOUT_CONSTANTS.DRAG_BOUNDARY.MIN, Math.min(constants_1.LAYOUT_CONSTANTS.DRAG_BOUNDARY.MAX, newY));
-            setNodes((prev) => prev.map((n) => n.id === draggingId ? Object.assign(Object.assign({}, n), { x: clampedX, y: clampedY }) : n));
-        }
-        else if (isPanningBackground) {
-            // Background panning
-            const deltaX = e.clientX - panStartPos.x;
-            const deltaY = e.clientY - panStartPos.y;
-            setBackgroundOffset({
-                x: backgroundOffset.x + deltaX,
-                y: backgroundOffset.y + deltaY,
-            });
-            setPanStartPos({ x: e.clientX, y: e.clientY });
+    }, [nodes, backgroundOffset]);
+    // Use document-level mouse events for proper panning/dragging
+    (0, react_1.useEffect)(() => {
+        const handleMouseMove = (e) => {
+            if (draggingId) {
+                // Node dragging - convert screen coordinates to canvas coordinates
+                const newX = e.clientX - dragOffset.x - backgroundOffset.x;
+                const newY = e.clientY - dragOffset.y - backgroundOffset.y;
+                // Check for overlaps before updating position
+                const MIN_DISTANCE = Math.sqrt(180 * 180 + 120 * 120) + 20; // Same as positioning.ts
+                setNodes((prev) => {
+                    const draggingNode = prev.find((n) => n.id === draggingId);
+                    if (!draggingNode)
+                        return prev;
+                    // Check for overlaps with current nodes
+                    const hasOverlap = prev.some((node) => {
+                        if (node.id === draggingId)
+                            return false;
+                        const distance = Math.sqrt(Math.pow(node.x - newX, 2) + Math.pow(node.y - newY, 2));
+                        return distance < MIN_DISTANCE;
+                    });
+                    // Only update if no overlap
+                    if (!hasOverlap) {
+                        return prev.map((n) => n.id === draggingId ? Object.assign(Object.assign({}, n), { x: newX, y: newY }) : n);
+                    }
+                    return prev;
+                });
+            }
+            else if (isPanningBackground) {
+                // Background panning
+                const deltaX = e.clientX - panStartPos.x;
+                const deltaY = e.clientY - panStartPos.y;
+                setBackgroundOffset((prev) => ({
+                    x: prev.x + deltaX,
+                    y: prev.y + deltaY,
+                }));
+                setPanStartPos({ x: e.clientX, y: e.clientY });
+            }
+        };
+        const handleMouseUp = () => {
+            setDraggingId(null);
+            setIsPanningBackground(false);
+        };
+        if (draggingId || isPanningBackground) {
+            document.addEventListener("mousemove", handleMouseMove);
+            document.addEventListener("mouseup", handleMouseUp);
+            return () => {
+                document.removeEventListener("mousemove", handleMouseMove);
+                document.removeEventListener("mouseup", handleMouseUp);
+            };
         }
     }, [draggingId, dragOffset, isPanningBackground, backgroundOffset, panStartPos]);
+    const handleMouseMove = (0, react_1.useCallback)((e) => {
+        // This is kept for compatibility but document events handle the actual work
+        e.preventDefault();
+    }, []);
     const handleMouseUp = (0, react_1.useCallback)(() => {
         setDraggingId(null);
         setIsPanningBackground(false);
     }, []);
     const handleBackgroundMouseDown = (0, react_1.useCallback)((e) => {
-        // Only start panning if clicking on background (not on a node)
-        if (e.target === e.currentTarget) {
-            setIsPanningBackground(true);
-            setPanStartPos({ x: e.clientX, y: e.clientY });
+        // Start panning if clicking on background (not on a node or its children)
+        const target = e.target;
+        // Don't pan if clicking on a node or its children
+        if (target.closest("[data-node-id]")) {
+            return;
         }
-    }, []);
-    // State for container dimensions
-    const [containerDimensions, setContainerDimensions] = (0, react_1.useState)({
-        width: 0,
-        height: 0,
-    });
-    // Update container dimensions on resize
-    (0, react_1.useEffect)(() => {
-        const updateDimensions = () => {
-            if (containerRef.current) {
-                const rect = containerRef.current.getBoundingClientRect();
-                setContainerDimensions({ width: rect.width, height: rect.height });
-            }
-        };
-        updateDimensions();
-        window.addEventListener("resize", updateDimensions);
-        return () => window.removeEventListener("resize", updateDimensions);
+        // Don't pan if clicking on interactive elements (buttons, inputs, etc.)
+        if (target.tagName === "BUTTON" ||
+            target.tagName === "INPUT" ||
+            target.tagName === "TEXTAREA" ||
+            target.closest("button") ||
+            target.closest("input") ||
+            target.closest("textarea")) {
+            return;
+        }
+        // Start panning
+        e.preventDefault();
+        setIsPanningBackground(true);
+        setPanStartPos({ x: e.clientX, y: e.clientY });
     }, []);
     // Memoized connections for performance
     const connections = (0, react_1.useMemo)(() => {
-        if (containerDimensions.width === 0 || containerDimensions.height === 0)
-            return [];
         return nodes
             .map((node) => {
             const parent = nodes.find((n) => n.id === node.parentId);
             if (!parent)
                 return null;
-            const x1 = (parent.x * containerDimensions.width) / 100;
-            const y1 = (parent.y * containerDimensions.height) / 100;
-            const x2 = (node.x * containerDimensions.width) / 100;
-            const y2 = (node.y * containerDimensions.height) / 100;
+            // Use pixel coordinates directly
+            const x1 = parent.x;
+            const y1 = parent.y;
+            const x2 = node.x;
+            const y2 = node.y;
             const midX = (x1 + x2) / 2;
             const midY = (y1 + y2) / 2;
             const colorData = colors_1.NODE_COLORS.find((c) => node.color.includes(c.light.split(" ")[0].replace("border-", "")));
@@ -214,7 +253,7 @@ function useMindMap(initialText) {
             };
         })
             .filter(Boolean);
-    }, [nodes, isDarkMode, containerDimensions]);
+    }, [nodes, isDarkMode]);
     return {
         // State
         isDarkMode,

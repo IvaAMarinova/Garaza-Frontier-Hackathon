@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react"
-import type { Node, NodeContent } from "@/lib/types"
-import { NODE_COLORS, CENTER_COLOR } from "@/lib/colors"
-import { calculateNewNodePosition } from "@/lib/positioning"
-import { LAYOUT_CONSTANTS, INITIAL_CENTER_NODE } from "@/lib/constants"
+import type { Node, NodeContent } from "../lib/types"
+import { NODE_COLORS, CENTER_COLOR } from "../lib/colors"
+import { calculateNewNodePosition } from "../lib/positioning"
+import { LAYOUT_CONSTANTS, INITIAL_CENTER_NODE } from "../lib/constants"
 export function useMindMap(initialText?: string) {
   // Theme state
   const [isDarkMode, setIsDarkMode] = useState(false)

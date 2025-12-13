@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Plus, Sparkles } from "lucide-react"
-import type { Node, NodeContent } from "@/lib/types"
+import type { Node, NodeContent } from "../lib/types"
 import { CodeBlock } from "./code-block"
 
 interface NodeCardProps {
