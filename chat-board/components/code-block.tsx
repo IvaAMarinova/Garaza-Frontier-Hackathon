@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { Copy, Check } from "lucide-react"
-import { LAYOUT_CONSTANTS } from "@/lib/constants"
 
 interface CodeBlockProps {
   language: string
@@ -15,7 +14,7 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
   const copyCode = async () => {
     await navigator.clipboard.writeText(code)
     setCopied(true)
-    setTimeout(() => setCopied(false), LAYOUT_CONSTANTS.COPY_FEEDBACK_DURATION)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (

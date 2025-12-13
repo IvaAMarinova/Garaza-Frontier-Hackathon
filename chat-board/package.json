@@ -32,7 +32,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "tsc && next build",
-    "build:lib": "tsc",
+    "build:lib": "tsc -p tsconfig.lib.json",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
