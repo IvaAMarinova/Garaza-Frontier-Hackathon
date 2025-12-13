@@ -36,24 +36,36 @@ export default function MindMap({ initialText }: MindMapProps) {
       ref={containerRef}
       className={`relative w-full h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300 ${isPanningBackground ? "cursor-grabbing" : "cursor-grab"}`}
       onMouseDown={handleBackgroundMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
       role="application"
       aria-label="Mind map canvas - drag nodes to move them or pan background"
     >
 
 
-      {/* Canvas Container */}
+      {/* Canvas Container - infinite canvas */}
       <div
-        className="absolute inset-0 w-full h-full"
+        className="absolute canvas-container"
         style={{
+          left: 0,
+          top: 0,
+          width: "100%",
+          height: "100%",
           transform: `translate(${backgroundOffset.x}px, ${backgroundOffset.y}px)`,
           transition: isPanningBackground ? "none" : "transform 0.2s ease-out",
         }}
+        onMouseDown={handleBackgroundMouseDown}
       >
-        {/* Connection Lines */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+        {/* Connection Lines - SVG covers large canvas area */}
+        <svg
+          className="absolute pointer-events-none"
+          style={{
+            left: "-100000px",
+            top: "-100000px",
+            width: "200000px",
+            height: "200000px",
+          }}
+          viewBox="-100000 -100000 200000 200000"
+          preserveAspectRatio="none"
+        >
           {connections.map((connection) => {
             const isNewConnection = newlyCreatedNodes.has(connection!.id)
             return (
@@ -84,12 +96,13 @@ export default function MindMap({ initialText }: MindMapProps) {
           return (
             <div
               key={node.id}
+              data-node-id={node.id}
               className={`absolute ${
                 draggingId === node.id ? "" : "transition-all duration-200"
               }`}
               style={{
-                left: `${node.x}%`,
-                top: `${node.y}%`,
+                left: `${node.x}px`,
+                top: `${node.y}px`,
                 transform: "translate(-50%, -50%)",
                 opacity: isNewlyCreated ? 0 : 1,
                 animation: isNewlyCreated
