@@ -1,6 +1,5 @@
 "use client"
 
-
 import { useMindMap } from "../hooks/use-mind-map"
 import { NodeCard } from "./node-card"
 import GoalDisplay from "./goal-display"
@@ -10,7 +9,10 @@ interface MindMapProps {
   isDarkMode?: boolean
 }
 
-export default function MindMap({ initialText, isDarkMode = false }: MindMapProps) {
+export default function MindMap({
+  initialText,
+  isDarkMode = false,
+}: MindMapProps) {
   const {
     nodes,
     draggingId,
@@ -41,8 +43,8 @@ export default function MindMap({ initialText, isDarkMode = false }: MindMapProp
     <div
       ref={containerRef}
       className={`mind-map-canvas relative w-full h-screen overflow-hidden bg-gradient-to-br transition-colors duration-300 ${
-        isDarkMode 
-          ? "from-slate-950 to-slate-900" 
+        isDarkMode
+          ? "from-slate-950 to-slate-900"
           : "from-slate-50 to-slate-100"
       } ${isPanningBackground ? "cursor-grabbing" : "cursor-grab"}`}
       onMouseDown={handleBackgroundMouseDown}
@@ -52,25 +54,37 @@ export default function MindMap({ initialText, isDarkMode = false }: MindMapProp
       {/* Loading indicator */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-50">
-          <div className={`rounded-lg p-6 shadow-lg ${isDarkMode ? "bg-slate-800" : "bg-white"}`}>
+          <div
+            className={`rounded-lg p-6 shadow-lg ${isDarkMode ? "bg-slate-800" : "bg-white"}`}
+          >
             <div className="flex items-center space-x-3">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className={isDarkMode ? "text-slate-300" : "text-slate-700"}>Loading tic tac toe concepts...</span>
+              <span
+                className={isDarkMode ? "text-slate-300" : "text-slate-700"}
+              >
+                Loading mind map...
+              </span>
             </div>
           </div>
         </div>
       )}
 
       {/* Goal Display */}
-      <GoalDisplay goal={goal} onFinish={handleFinish} isDarkMode={isDarkMode} />
+      <GoalDisplay
+        goal={goal}
+        onFinish={handleFinish}
+        isDarkMode={isDarkMode}
+      />
 
       {/* Session info */}
       {sessionId && !isLoading && (
-        <div className={`absolute top-4 left-4 rounded-lg px-3 py-2 text-xs backdrop-blur-sm ${
-          isDarkMode 
-            ? "bg-slate-800/90 text-slate-400" 
-            : "bg-white/90 text-slate-600"
-        }`}>
+        <div
+          className={`absolute top-4 left-4 rounded-lg px-3 py-2 text-xs backdrop-blur-sm ${
+            isDarkMode
+              ? "bg-slate-800/90 text-slate-400"
+              : "bg-white/90 text-slate-600"
+          }`}
+        >
           Session: {sessionId.slice(0, 8)}...
         </div>
       )}
@@ -86,14 +100,21 @@ export default function MindMap({ initialText, isDarkMode = false }: MindMapProp
           }`}
           aria-label="Zoom in"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="M21 21l-4.35-4.35"/>
-            <line x1="8" y1="11" x2="14" y2="11"/>
-            <line x1="11" y1="8" x2="11" y2="14"/>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+            <line x1="8" y1="11" x2="14" y2="11" />
+            <line x1="11" y1="8" x2="11" y2="14" />
           </svg>
         </button>
-        
+
         <button
           onClick={zoomOut}
           className={`w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center ${
@@ -103,13 +124,20 @@ export default function MindMap({ initialText, isDarkMode = false }: MindMapProp
           }`}
           aria-label="Zoom out"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="M21 21l-4.35-4.35"/>
-            <line x1="8" y1="11" x2="14" y2="11"/>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+            <line x1="8" y1="11" x2="14" y2="11" />
           </svg>
         </button>
-        
+
         <button
           onClick={resetZoom}
           className={`w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center ${
@@ -119,24 +147,32 @@ export default function MindMap({ initialText, isDarkMode = false }: MindMapProp
           }`}
           aria-label="Reset zoom"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-            <path d="M21 3v5h-5"/>
-            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-            <path d="M3 21v-5h5"/>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+            <path d="M3 21v-5h5" />
           </svg>
         </button>
-        
+
         {/* Zoom level indicator */}
-        <div className={`rounded-lg px-2 py-1 text-xs backdrop-blur-sm text-center ${
-          isDarkMode 
-            ? "bg-slate-800/90 text-slate-400" 
-            : "bg-white/90 text-slate-600"
-        }`}>
+        <div
+          className={`rounded-lg px-2 py-1 text-xs backdrop-blur-sm text-center ${
+            isDarkMode
+              ? "bg-slate-800/90 text-slate-400"
+              : "bg-white/90 text-slate-600"
+          }`}
+        >
           {Math.round(zoomLevel * 100)}%
         </div>
       </div>
-
 
       {/* Canvas Container - infinite canvas */}
       <div
@@ -166,7 +202,7 @@ export default function MindMap({ initialText, isDarkMode = false }: MindMapProp
         >
           {connections.map((connection) => {
             const isNewConnection = newlyCreatedNodes.has(connection!.id)
-            
+
             return (
               <g key={`connection-${connection!.id}`}>
                 <path
@@ -221,7 +257,9 @@ export default function MindMap({ initialText, isDarkMode = false }: MindMapProp
                 isNewlyCreated={isNewlyCreated}
                 isUpdated={isUpdated}
                 sessionId={sessionId || undefined}
-                conceptId={(node as unknown as { conceptId?: string }).conceptId}
+                conceptId={
+                  (node as unknown as { conceptId?: string }).conceptId
+                }
                 isDarkMode={isDarkMode}
               />
             </div>

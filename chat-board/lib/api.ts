@@ -319,15 +319,16 @@ export function convertConceptGraphToNodes(conceptGraph: ConceptGraphResponse): 
     conceptId: centerConcept.id
   }
 
-  // Find direct children of the center concept
-  const childConceptIds = edges
-    .filter(edge => edge.from_concept_id === centerConcept.id)
-    .map(edge => edge.to_concept_id)
+  // Simple approach: show all other concepts as children of the center
+  // This works better for complex interconnected graphs
+  const allChildIds = concepts
+    .filter(concept => concept.id !== centerConcept.id)
+    .map(concept => concept.id)
 
-  const childNodes: Array<NodeContent & { conceptId: string }> = childConceptIds
+  const childNodes: Array<NodeContent & { conceptId: string }> = allChildIds
     .map(id => concepts.find(c => c.id === id))
     .filter(Boolean)
-    .slice(0, 5) // Limit to first 5 children
+    .slice(0, 8) // Show up to 8 connected nodes
     .map(concept => ({
       text: concept!.summary,
       header: concept!.label,
