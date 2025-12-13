@@ -12,7 +12,7 @@ export const LAYOUT_CONSTANTS = {
 export const INITIAL_CENTER_NODE = {
   id: "1",
   content: {
-    text: "Central Idea",
+    text: "",
   },
   x: 50,
   y: 50,
