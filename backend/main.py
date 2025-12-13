@@ -1,5 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 
 from app.api import build_router
 from app.chat_service import ChatService
@@ -10,6 +12,19 @@ from app.openai_client import OpenAIClient
 from app.store import InMemoryChatStore
 
 app = FastAPI(title="Chat Backend API", version="1.0.0")
+
+origins = [
+    "http://localhost:3000",
+    "http://localhost",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 store = InMemoryChatStore()
 llm = OpenAIClient()
