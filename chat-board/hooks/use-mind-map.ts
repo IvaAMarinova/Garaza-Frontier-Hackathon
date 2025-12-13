@@ -23,7 +23,9 @@ export function useMindMap() {
   // Theme management
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme")
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches
     setIsDarkMode(savedTheme === "dark" || (!savedTheme && prefersDark))
   }, [])
 
@@ -37,111 +39,145 @@ export function useMindMap() {
     }
   }, [isDarkMode])
 
-  const toggleTheme = useCallback(() => setIsDarkMode(!isDarkMode), [isDarkMode])
+  const toggleTheme = useCallback(
+    () => setIsDarkMode(!isDarkMode),
+    [isDarkMode]
+  )
 
   // Node management
-  const addNode = useCallback((parentId: string) => {
-    const parent = nodes.find((n) => n.id === parentId)
-    if (!parent) return
+  const addNode = useCallback(
+    (parentId: string) => {
+      const parent = nodes.find((n) => n.id === parentId)
+      if (!parent) return
 
-    const siblings = nodes.filter((n) => n.parentId === parentId)
-    let nodeColor: string
+      const siblings = nodes.filter((n) => n.parentId === parentId)
+      let nodeColor: string
 
-    if (parent.parentId === null) {
-      if (siblings.length > 0) {
-        nodeColor = siblings[0].color
+      if (parent.parentId === null) {
+        if (siblings.length > 0) {
+          nodeColor = siblings[0].color
+        } else {
+          const usedColorIndices = new Set(
+            nodes
+              .filter((n) => n.parentId === "1")
+              .map((n) =>
+                NODE_COLORS.findIndex((c) =>
+                  n.color.includes(c.light.split(" ")[0].replace("border-", ""))
+                )
+              )
+              .filter((i) => i !== -1)
+          )
+
+          let colorIndex = 0
+          while (
+            usedColorIndices.has(colorIndex) &&
+            colorIndex < NODE_COLORS.length
+          ) {
+            colorIndex++
+          }
+          if (colorIndex >= NODE_COLORS.length) {
+            colorIndex = Math.floor(Math.random() * NODE_COLORS.length)
+          }
+          nodeColor = NODE_COLORS[colorIndex].light
+        }
       } else {
-        const usedColorIndices = new Set(
-          nodes
-            .filter((n) => n.parentId === "1")
-            .map((n) => NODE_COLORS.findIndex((c) => 
-              n.color.includes(c.light.split(" ")[0].replace("border-", ""))
-            ))
-            .filter((i) => i !== -1)
-        )
-
-        let colorIndex = 0
-        while (usedColorIndices.has(colorIndex) && colorIndex < NODE_COLORS.length) {
-          colorIndex++
-        }
-        if (colorIndex >= NODE_COLORS.length) {
-          colorIndex = Math.floor(Math.random() * NODE_COLORS.length)
-        }
-        nodeColor = NODE_COLORS[colorIndex].light
+        nodeColor = parent.color
       }
-    } else {
-      nodeColor = parent.color
-    }
 
-    const position = calculateNewNodePosition(parent, siblings, nodes)
-    const newNode: Node = {
-      id: Date.now().toString(),
-      content: { text: "New Node" },
-      x: position.x,
-      y: position.y,
-      color: nodeColor,
-      parentId,
-    }
+      const position = calculateNewNodePosition(parent, siblings, nodes)
+      const newNode: Node = {
+        id: Date.now().toString(),
+        content: { text: "New Node" },
+        x: position.x,
+        y: position.y,
+        color: nodeColor,
+        parentId,
+      }
 
-    setNodes(prev => [...prev, newNode])
-  }, [nodes])
+      setNodes((prev) => [...prev, newNode])
+    },
+    [nodes]
+  )
 
-  const deleteNode = useCallback((id: string) => {
-    const toDelete = new Set([id])
-    let changed = true
+  const deleteNode = useCallback(
+    (id: string) => {
+      const toDelete = new Set([id])
+      let changed = true
 
-    while (changed) {
-      changed = false
-      nodes.forEach((node) => {
-        if (node.parentId && toDelete.has(node.parentId) && !toDelete.has(node.id)) {
-          toDelete.add(node.id)
-          changed = true
-        }
-      })
-    }
+      while (changed) {
+        changed = false
+        nodes.forEach((node) => {
+          if (
+            node.parentId &&
+            toDelete.has(node.parentId) &&
+            !toDelete.has(node.id)
+          ) {
+            toDelete.add(node.id)
+            changed = true
+          }
+        })
+      }
 
-    setNodes(prev => prev.filter((n) => !toDelete.has(n.id)))
-  }, [nodes])
+      setNodes((prev) => prev.filter((n) => !toDelete.has(n.id)))
+    },
+    [nodes]
+  )
 
   const editNode = useCallback((id: string, content: NodeContent) => {
-    setNodes(prev => prev.map((n) => (n.id === id ? { ...n, content } : n)))
+    setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, content } : n)))
   }, [])
 
   const removeConnection = useCallback((childId: string) => {
-    setNodes(prev => prev.map((n) => (n.id === childId ? { ...n, parentId: null } : n)))
+    setNodes((prev) =>
+      prev.map((n) => (n.id === childId ? { ...n, parentId: null } : n))
+    )
   }, [])
 
   // Drag and drop
-  const handleMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
-    const node = nodes.find((n) => n.id === nodeId)
-    if (!node || !containerRef.current) return
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent, nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId)
+      if (!node || !containerRef.current) return
 
-    const rect = containerRef.current.getBoundingClientRect()
-    const nodeX = (node.x * rect.width) / 100
-    const nodeY = (node.y * rect.height) / 100
+      const rect = containerRef.current.getBoundingClientRect()
+      const nodeX = (node.x * rect.width) / 100
+      const nodeY = (node.y * rect.height) / 100
 
-    setDraggingId(nodeId)
-    setDragOffset({
-      x: e.clientX - nodeX,
-      y: e.clientY - nodeY,
-    })
-  }, [nodes])
+      setDraggingId(nodeId)
+      setDragOffset({
+        x: e.clientX - nodeX,
+        y: e.clientY - nodeY,
+      })
+    },
+    [nodes]
+  )
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!draggingId || !containerRef.current) return
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!draggingId || !containerRef.current) return
 
-    e.preventDefault()
-    const rect = containerRef.current.getBoundingClientRect()
-    const newX = ((e.clientX - dragOffset.x) / rect.width) * 100
-    const newY = ((e.clientY - dragOffset.y) / rect.height) * 100
+      e.preventDefault()
+      const rect = containerRef.current.getBoundingClientRect()
+      const newX = ((e.clientX - dragOffset.x) / rect.width) * 100
+      const newY = ((e.clientY - dragOffset.y) / rect.height) * 100
 
-    const clampedX = Math.max(LAYOUT_CONSTANTS.DRAG_BOUNDARY.MIN, Math.min(LAYOUT_CONSTANTS.DRAG_BOUNDARY.MAX, newX))
-    const clampedY = Math.max(LAYOUT_CONSTANTS.DRAG_BOUNDARY.MIN, Math.min(LAYOUT_CONSTANTS.DRAG_BOUNDARY.MAX, newY))
+      const clampedX = Math.max(
+        LAYOUT_CONSTANTS.DRAG_BOUNDARY.MIN,
+        Math.min(LAYOUT_CONSTANTS.DRAG_BOUNDARY.MAX, newX)
+      )
+      const clampedY = Math.max(
+        LAYOUT_CONSTANTS.DRAG_BOUNDARY.MIN,
+        Math.min(LAYOUT_CONSTANTS.DRAG_BOUNDARY.MAX, newY)
+      )
 
-    setNodes(prev => prev.map((n) =>
-      n.id === draggingId ? { ...n, x: clampedX, y: clampedY } : n
-    ))
-  }, [draggingId, dragOffset, nodes])
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === draggingId ? { ...n, x: clampedX, y: clampedY } : n
+        )
+      )
+    },
+    [draggingId, dragOffset]
+  )
 
   const handleMouseUp = useCallback(() => {
     setDraggingId(null)
@@ -161,7 +197,7 @@ export function useMindMap() {
         const midX = (x1 + x2) / 2
         const midY = (y1 + y2) / 2
 
-        const colorData = NODE_COLORS.find((c) => 
+        const colorData = NODE_COLORS.find((c) =>
           node.color.includes(c.light.split(" ")[0].replace("border-", ""))
         )
         const strokeColor = isDarkMode
@@ -184,7 +220,7 @@ export function useMindMap() {
     draggingId,
     containerRef,
     connections,
-    
+
     // Actions
     toggleTheme,
     addNode,

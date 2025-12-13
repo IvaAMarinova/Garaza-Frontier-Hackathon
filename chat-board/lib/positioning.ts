@@ -1,18 +1,22 @@
 import type { Node, Position } from "./types"
 
-export function calculateNewNodePosition(parent: Node, siblings: Node[], allNodes: Node[]): Position {
+export function calculateNewNodePosition(
+  parent: Node,
+  siblings: Node[],
+  allNodes: Node[]
+): Position {
   // Node dimensions (approximate visual size in percentage units)
-  const NODE_WIDTH = 12  // ~180px at typical screen size
-  const NODE_HEIGHT = 8  // ~120px at typical screen size
+  const NODE_WIDTH = 12 // ~180px at typical screen size
+  const NODE_HEIGHT = 8 // ~120px at typical screen size
   const MIN_DISTANCE = Math.max(NODE_WIDTH, NODE_HEIGHT) + 3 // Extra padding
-  
+
   const baseRadius = 15 // Start closer to parent
   const maxAttempts = 24 // More attempts for better placement
-  
+
   // Try multiple radius levels if needed
   for (let radiusLevel = 0; radiusLevel < 3; radiusLevel++) {
-    const currentRadius = baseRadius + (radiusLevel * 12)
-    
+    const currentRadius = baseRadius + radiusLevel * 12
+
     // Try positions in a circle around parent at current radius
     for (let i = 0; i < maxAttempts; i++) {
       const angle = (360 / maxAttempts) * i + ((siblings.length * 15) % 360)

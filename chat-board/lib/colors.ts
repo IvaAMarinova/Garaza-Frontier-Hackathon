@@ -1,6 +1,7 @@
 export const NODE_COLORS = [
   {
-    light: "border-red-300 bg-red-50/80 text-red-900 dark:border-red-700 dark:bg-red-950/50 dark:text-red-100",
+    light:
+      "border-red-300 bg-red-50/80 text-red-900 dark:border-red-700 dark:bg-red-950/50 dark:text-red-100",
     connection: "#fca5a5",
     darkConnection: "#991b1b",
   },
@@ -11,12 +12,14 @@ export const NODE_COLORS = [
     darkConnection: "#6b21a8",
   },
   {
-    light: "border-pink-300 bg-pink-50/80 text-pink-900 dark:border-pink-700 dark:bg-pink-950/50 dark:text-pink-100",
+    light:
+      "border-pink-300 bg-pink-50/80 text-pink-900 dark:border-pink-700 dark:bg-pink-950/50 dark:text-pink-100",
     connection: "#fbcfe8",
     darkConnection: "#9f1239",
   },
   {
-    light: "border-blue-300 bg-blue-50/80 text-blue-900 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-100",
+    light:
+      "border-blue-300 bg-blue-50/80 text-blue-900 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-100",
     connection: "#93c5fd",
     darkConnection: "#1e40af",
   },
@@ -33,7 +36,8 @@ export const NODE_COLORS = [
     darkConnection: "#14532d",
   },
   {
-    light: "border-cyan-300 bg-cyan-50/80 text-cyan-900 dark:border-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-100",
+    light:
+      "border-cyan-300 bg-cyan-50/80 text-cyan-900 dark:border-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-100",
     connection: "#67e8f9",
     darkConnection: "#164e63",
   },
