@@ -3,7 +3,12 @@
 import { useState, useRef, useEffect } from "react"
 import { Send } from "lucide-react"
 
-export default function ChatInput() {
+interface ChatInputProps {
+  onSend?: (message: string) => void
+  isCentered?: boolean
+}
+
+export default function ChatInput({ onSend, isCentered = false }: ChatInputProps) {
   const [message, setMessage] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -17,15 +22,25 @@ export default function ChatInput() {
 
   const handleSend = () => {
     if (message.trim()) {
+      const messageToSend = message.trim()
       setMessage("")
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto"
+      }
+      if (onSend) {
+        onSend(messageToSend)
       }
     }
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-4 z-50">
+    <div 
+      className={`fixed left-0 right-0 flex justify-center px-4 z-50 transition-all duration-500 ease-in-out ${
+        isCentered 
+          ? "top-1/2 -translate-y-1/2 pb-0" 
+          : "bottom-0 pb-4"
+      }`}
+    >
       <div className="w-full max-w-3xl">
         <div className="relative flex items-end gap-2 bg-card border border-border rounded-2xl shadow-lg p-2">
           <textarea

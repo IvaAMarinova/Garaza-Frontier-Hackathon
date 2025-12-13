@@ -17,18 +17,22 @@ export function useMindMap(initialText?: string) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [goal, setGoal] = useState<Goal | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const initializationInProgress = useRef(false)
   
   // Initialize with tic tac toe concept graph
   useEffect(() => {
-    if (containerRef.current && !isInitialized) {
+    if (containerRef.current && !isInitialized && !initializationInProgress.current) {
+      initializationInProgress.current = true
       const rect = containerRef.current.getBoundingClientRect()
       console.log('Container rect:', rect)
-      console.log('Initial zoom level:', zoomLevel)
       
       const initializeWithBackend = async () => {
         setIsLoading(true)
         try {
-          const { sessionId: newSessionId, conceptGraph } = await initializeTicTacToeSession()
+          // Use initialText (user input) as the prompt, or fallback to default
+          const prompt = initialText || undefined
+          const { sessionId: newSessionId, conceptGraph } = await initializeTicTacToeSession(prompt)
           setSessionId(newSessionId)
           
           // Fetch the goal after getting the session
@@ -114,6 +118,7 @@ export function useMindMap(initialText?: string) {
         } finally {
           setIsLoading(false)
           setIsInitialized(true)
+          initializationInProgress.current = false
         }
       }
       
@@ -127,7 +132,6 @@ export function useMindMap(initialText?: string) {
   const [isPanningBackground, setIsPanningBackground] = useState(false)
   const [backgroundOffset, setBackgroundOffset] = useState({ x: 0, y: 0 })
   const [panStartPos, setPanStartPos] = useState({ x: 0, y: 0 })
-  const containerRef = useRef<HTMLDivElement>(null)
 
   // Zoom state
   const [zoomLevel, setZoomLevel] = useState(1)

@@ -181,13 +181,13 @@ export async function getGoal(sessionId: string): Promise<GoalResponse> {
   return response.json()
 }
 
-export async function initializeTicTacToeSession(): Promise<{ sessionId: string; conceptGraph: ConceptGraphResponse }> {
+export async function initializeTicTacToeSession(prompt?: string): Promise<{ sessionId: string; conceptGraph: ConceptGraphResponse }> {
   try {
     // Create a new session
     const { session_id } = await createSession()
     
-    // Generate initial tic tac toe context
-    const ticTacToePrompt = `Let's create a tic tac toe game. I want to understand the game mechanics, rules, strategies, and implementation details. 
+    // Use provided prompt or default tic tac toe prompt
+    const ticTacToePrompt = prompt || `Let's create a tic tac toe game. I want to understand the game mechanics, rules, strategies, and implementation details. 
     
     Key concepts to explore:
     - Game rules and winning conditions
