@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://0.0.0.0:8000/v1/chat';
+const API_BASE_URL = 'http://localhost:8000/v1/chat';
 export async function createSession() {
     const url = `${API_BASE_URL}/sessions`;
     console.log('Creating session at', url);
