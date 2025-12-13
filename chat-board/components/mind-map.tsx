@@ -1,6 +1,6 @@
 "use client"
 
-import { Moon, Sun } from "lucide-react"
+
 import { useMindMap } from "@/hooks/use-mind-map"
 import { NodeCard } from "./node-card"
 
@@ -20,7 +20,7 @@ export default function MindMap({ initialText }: MindMapProps) {
     newlyCreatedNodes,
     updatedNodes,
 
-    toggleTheme,
+
     addNode,
     deleteNode,
     editNode,
@@ -42,18 +42,7 @@ export default function MindMap({ initialText }: MindMapProps) {
       role="application"
       aria-label="Mind map canvas - drag nodes to move them or pan background"
     >
-      {/* Theme Toggle */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-4 right-4 z-10 p-3 bg-white dark:bg-slate-800 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border border-slate-200 dark:border-slate-700"
-        title="Toggle dark mode"
-      >
-        {isDarkMode ? (
-          <Sun className="w-5 h-5 text-amber-500" />
-        ) : (
-          <Moon className="w-5 h-5 text-slate-700" />
-        )}
-      </button>
+
 
       {/* Canvas Container */}
       <div
