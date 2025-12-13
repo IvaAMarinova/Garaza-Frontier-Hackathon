@@ -36,11 +36,12 @@ export default function ChatInput({ onSend, isCentered = false, isDarkMode: _isD
 
   return (
     <div 
-      className={`fixed left-0 right-0 flex justify-center px-4 z-50 transition-all duration-500 ease-in-out ${
-        isCentered 
-          ? "top-1/2 -translate-y-1/2 pb-0" 
-          : "bottom-0 pb-4"
-      }`}
+      className="fixed left-0 right-0 flex justify-center px-4 z-50 transition-all duration-700 ease-in-out"
+      style={{
+        bottom: isCentered ? '50%' : '0',
+        transform: isCentered ? 'translateY(-50%)' : 'translateY(0)',
+        paddingBottom: isCentered ? '0' : '1rem'
+      }}
     >
       <div className="w-full max-w-3xl">
         <div className="relative flex items-end gap-2 bg-card border border-border rounded-2xl shadow-lg p-2">

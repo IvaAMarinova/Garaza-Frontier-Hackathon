@@ -24,9 +24,11 @@ export default function ChatInput({ onSend, isCentered = false, isDarkMode: _isD
             }
         }
     };
-    return (_jsx("div", { className: `fixed left-0 right-0 flex justify-center px-4 z-50 transition-all duration-500 ease-in-out ${isCentered
-            ? "top-1/2 -translate-y-1/2 pb-0"
-            : "bottom-0 pb-4"}`, children: _jsx("div", { className: "w-full max-w-3xl", children: _jsxs("div", { className: "relative flex items-end gap-2 bg-card border border-border rounded-2xl shadow-lg p-2", children: [_jsx("textarea", { ref: textareaRef, value: message, onChange: (e) => setMessage(e.target.value), placeholder: "Message...", className: "flex-1 resize-none bg-transparent border-none outline-none px-4 py-3 text-foreground placeholder:text-muted-foreground max-h-32 overflow-y-auto", rows: 1, onKeyDown: (e) => {
+    return (_jsx("div", { className: "fixed left-0 right-0 flex justify-center px-4 z-50 transition-all duration-700 ease-in-out", style: {
+            bottom: isCentered ? '50%' : '0',
+            transform: isCentered ? 'translateY(-50%)' : 'translateY(0)',
+            paddingBottom: isCentered ? '0' : '1rem'
+        }, children: _jsx("div", { className: "w-full max-w-3xl", children: _jsxs("div", { className: "relative flex items-end gap-2 bg-card border border-border rounded-2xl shadow-lg p-2", children: [_jsx("textarea", { ref: textareaRef, value: message, onChange: (e) => setMessage(e.target.value), placeholder: "Message...", className: "flex-1 resize-none bg-transparent border-none outline-none px-4 py-3 text-foreground placeholder:text-muted-foreground max-h-32 overflow-y-auto", rows: 1, onKeyDown: (e) => {
                             if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();
                                 handleSend();
