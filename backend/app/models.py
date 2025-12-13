@@ -1,6 +1,6 @@
 import time
 import uuid
-from typing import Literal, Optional, List
+from typing import Dict, Literal, Optional, List
 from pydantic import BaseModel, Field
 
 Role = Literal["system", "user", "assistant"]
@@ -41,6 +41,8 @@ class ConceptNodeModel(BaseModel):
     summary: str
     first_seen_index: int
     last_seen_index: int
+    weight: float = 0.0
+    expansions: List[str] = Field(default_factory=list)
 
 
 class ConceptEdgeModel(BaseModel):
@@ -64,3 +66,55 @@ class ConceptGraphResponse(BaseModel):
     concepts: List[ConceptNodeModel] = Field(default_factory=list)
     edges: List[ConceptEdgeModel] = Field(default_factory=list)
     meta: ConceptGraphMetaModel
+
+
+class GoalOverlayModel(BaseModel):
+    id: str
+    concept_id: str
+    depth: int
+    content_markdown: str
+    doc_links: List[str] = Field(default_factory=list)
+
+
+class FocusScoresModel(BaseModel):
+    interest_score: float = 0.0
+    confusion_score: float = 0.0
+    mastery_score: float = 0.0
+    unknownness: float = 0.0
+
+
+class GoalNodeMetaModel(BaseModel):
+    global_answer_depth: int
+    last_updated_ts: float
+    last_refined_concepts: List[str] = Field(default_factory=list)
+
+
+class GoalNodeResponse(BaseModel):
+    id: str
+    goal_statement: str
+    answer_markdown: str
+    overlays: List[GoalOverlayModel] = Field(default_factory=list)
+    focus: Dict[str, FocusScoresModel] = Field(default_factory=dict)
+    meta: GoalNodeMetaModel
+
+
+class GoalNodeInitRequest(BaseModel):
+    force: bool = False
+
+
+class GoalInteractionModel(BaseModel):
+    concept_id: str
+    event: Literal["expand", "revisit", "confused", "mastered", "collapse"]
+    strength: float = Field(default=1.0, ge=0)
+
+
+class GoalInteractionRequest(BaseModel):
+    events: List[GoalInteractionModel] = Field(default_factory=list)
+    auto_refine: bool = True
+
+
+class ConceptExpandRequest(BaseModel):
+    expansion: Optional[str] = Field(default=None)
+    weight: Optional[float] = None
+    strength: float = Field(default=1.0, ge=0)
+    auto_refine: bool = True

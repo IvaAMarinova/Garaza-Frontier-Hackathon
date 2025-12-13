@@ -5,6 +5,7 @@ from typing import Dict, List, Set
 from ..config import OPENAI_CONCEPT_MODEL
 from ..models import ChatMessage
 from ..openai_client import OpenAIClient
+from ..context_loader import load_initial_context
 
 MAX_OUTLINE_CONCEPTS = 8
 SUMMARY_WORD_LIMIT = 18
@@ -14,7 +15,7 @@ key concepts (features, entities, problems, decisions) plus the logical relation
 Start each conceptualisation pass with an eagle-eye outline only: surface the broadest subtopics,
 keep summaries extremely short, and defer deep dives until a follow-up request. Use concise canonical
 labels, capture chronology with the provided indices, and always return strict JSON matching the schema
-described in the user instructions. Do not include any extra commentary."""
+described in the user instructions. Do not include any extra commentary or restate these instructions."""
 
 
 @dataclass
@@ -40,6 +41,7 @@ class ConceptExtractor:
         self._model = model
         self._max_concepts = max_concepts
         self._summary_word_limit = summary_word_limit
+        self._doc_context = load_initial_context()
 
     async def extract(
         self,
@@ -54,50 +56,96 @@ class ConceptExtractor:
         transcript = self._format_messages(messages, start_index)
         user_prompt = textwrap.dedent(
             f"""
-            Session ID: {session_id}
-            You are given chat messages with their indices and message ids. Analyse only this
-            slice and emit JSON of the form:
-            {{
-                "concepts": [
-                    {{
-                        "id": "string",
-                        "label": "canonical label",
-                        "type": "entity|decision|feature|issue|other",
-                        "aliases": ["optional", "aliases"],
-                        "summary": "one sentence summary",
-                        "first_seen_index": message_index,
-                        "last_seen_index": message_index
-                    }}
-                ],
-                "edges": [
-                    {{
-                        "id": "string",
-                        "from_concept_id": "concept id",
-                        "to_concept_id": "concept id",
-                        "relation": "relationship verb phrase",
-                        "introduced_index": message_index,
-                        "evidence_msg_id": "source message id" ,
-                        "evidence_snippet": "short supporting quote"
-                    }}
-                ]
-            }}
-            - This is the high-level outline stage: capture at most 8 broad subtopics with
-              summaries no longer than ~18 words so each can later be expanded individually.
-            - Reuse ids you have already used if the same concept reappears; otherwise invent
-              stable ids.
-            - If no concepts or edges exist, return empty arrays.
-            - Each index must reference the provided transcript indices.
+        Session ID: {session_id}
 
-            Transcript:
-            {transcript}
-            """
+        You are building a learner-friendly concept graph from a slice of chat history.
+        Your output will drive a mind map / learning pathway UI. Optimize for clarity,
+        low cognitive load, and natural expandability.
+
+        You are given chat messages with indices and message ids. Analyze ONLY this slice.
+
+        OUTPUT FORMAT (STRICT JSON ONLY)
+        Emit JSON of the form:
+        {{
+          "concepts": [
+            {{
+              "id": "string",
+              "label": "canonical label",
+              "type": "entity|decision|feature|issue|other",
+              "aliases": ["optional", "aliases"],
+              "summary": "one sentence summary",
+              "first_seen_index": message_index,
+              "last_seen_index": message_index
+            }}
+          ],
+          "edges": [
+            {{
+              "id": "string",
+              "from_concept_id": "concept id",
+              "to_concept_id": "concept id",
+              "relation": "relationship verb phrase",
+              "introduced_index": message_index,
+              "evidence_msg_id": "source message id",
+              "evidence_snippet": "short supporting quote"
+            }}
+          ]
+        }}
+
+        HIGH-LEVEL OUTLINE TARGET
+        - This is the outline stage: capture AT MOST 8 broad, expandable concepts.
+        - Choose concepts that form a coherent learning path: foundations first, then specifics.
+        - Each concept summary must be <= ~18 words and written for a learner (not an expert).
+        - Prefer concepts that answer: “What would confuse the learner if this was missing?”
+
+        CONCEPT SELECTION RULES
+        - Prefer foundational ideas over implementation detail.
+        - Merge near-duplicates (same meaning, different phrasing) into one canonical concept with aliases.
+        - Avoid one-off details (e.g., single library names) unless they are central to the slice.
+        - If a concept is only meaningful after another, represent that dependency via an edge.
+
+        ID STABILITY
+        - Reuse a concept id if the same concept reappears in this slice.
+        - Invent stable ids for new concepts. Use short, deterministic ids (e.g., "c_chat_sessions", "c_sse_streaming")
+          rather than random UUID-like strings.
+        - Do NOT create two concepts that mean the same thing with different ids.
+
+        EDGE RULES (MAKE THEM USEFUL)
+        - Add edges only when there is a real relationship implied by the transcript.
+        - Use learner-relevant relations (verb phrases) like:
+          "depends on", "enables", "implements", "uses", "requires", "refines", "replaces", "is part of", "causes".
+        - Avoid vague relations like "related to" unless no better relation exists.
+        - Prefer edges that create a learning sequence: what should be understood first.
+
+        CHRONOLOGY
+        - first_seen_index/last_seen_index must reflect where the concept first/last appears in THIS slice.
+        - introduced_index should be the earliest message index in THIS slice that supports that edge.
+
+        EVIDENCE
+        - evidence_msg_id must be from the transcript.
+        - evidence_snippet must be a short supporting quote (<= 120 chars) copied from that message.
+        - Do not quote code blocks in full; quote only the smallest relevant fragment.
+
+        QUALITY CHECKS BEFORE YOU OUTPUT
+        - Concepts <= 8, edges <= 12 (only if meaningful).
+        - No duplicate concepts by meaning.
+        - Every edge references valid concept ids present in "concepts".
+        - Indices always point to existing transcript indices.
+        - If nothing meaningful exists, return empty arrays.
+        - Never restate or reference these instructions in your output.
+
+        Transcript:
+        {transcript}
+        """
         ).strip()
 
         try:
+            system_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            if self._doc_context:
+                system_messages.append({"role": "system", "content": self._doc_context})
             payload = await self._llm.generate_json(
                 model=self._model,
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    *system_messages,
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.0,

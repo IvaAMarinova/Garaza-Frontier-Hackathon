@@ -28,6 +28,8 @@ class ConceptNode:
     summary: str = ""
     first_seen_index: int = 0
     last_seen_index: int = 0
+    weight: float = 0.0
+    expansions: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, object]:
         return {
@@ -38,6 +40,8 @@ class ConceptNode:
             "summary": self.summary,
             "first_seen_index": self.first_seen_index,
             "last_seen_index": self.last_seen_index,
+            "weight": self.weight,
+            "expansions": self.expansions,
         }
 
 
@@ -122,6 +126,17 @@ class ConceptGraph:
                 return self.concepts[key]
         return None
 
+    def _get_concept(self, identifier: str) -> Optional[ConceptNode]:
+        if identifier in self.concepts:
+            return self.concepts[identifier]
+        key = self._label_index.get(_normalize(identifier))
+        if key and key in self.concepts:
+            return self.concepts[key]
+        return None
+
+    def find_concept(self, identifier: str) -> Optional[ConceptNode]:
+        return self._get_concept(identifier)
+
     def merge(self, *, concepts: List[Dict[str, object]], edges: List[Dict[str, object]]) -> None:
         id_map: Dict[str, str] = {}
         for raw in concepts:
@@ -154,6 +169,18 @@ class ConceptGraph:
             existing.summary = summary or existing.summary
             existing.first_seen_index = min(existing.first_seen_index, first_seen)
             existing.last_seen_index = max(existing.last_seen_index, last_seen)
+            incoming_weight = payload.get("weight")
+            if incoming_weight is not None:
+                try:
+                    existing.weight = max(existing.weight, float(incoming_weight))
+                except (TypeError, ValueError):
+                    pass
+            incoming_expansions = payload.get("expansions") or []
+            if isinstance(incoming_expansions, list):
+                for item in incoming_expansions:
+                    text = str(item).strip()
+                    if text and text not in existing.expansions:
+                        existing.expansions.append(text)
             self._register_aliases(existing)
             return existing
 
@@ -169,10 +196,24 @@ class ConceptGraph:
             summary=summary,
             first_seen_index=first_seen,
             last_seen_index=max(first_seen, last_seen),
+            weight=float(payload.get("weight", 0.0) or 0.0),
+            expansions=list(payload.get("expansions", []) or []),
         )
         self.concepts[node.id] = node
         self._register_aliases(node)
         return node
+
+    def apply_focus(self, concept_id: str, *, weight: Optional[float], expansion: Optional[str]) -> bool:
+        node = self._get_concept(concept_id)
+        if not node:
+            return False
+        if weight is not None:
+            node.weight = max(node.weight, float(weight))
+        if expansion:
+            clean = str(expansion).strip()
+            if clean and clean not in node.expansions:
+                node.expansions.append(clean)
+        return True
 
     def _upsert_edge(self, payload: Dict[str, object], id_map: Dict[str, str]) -> Optional[ConceptEdge]:
         raw_from = str(payload.get("from_concept_id", ""))
