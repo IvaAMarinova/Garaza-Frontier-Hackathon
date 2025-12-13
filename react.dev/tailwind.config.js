@@ -17,6 +17,8 @@ module.exports = {
     './src/components/**/*.{js,ts,jsx,tsx}',
     './src/pages/**/*.{js,ts,jsx,tsx}',
     './src/styles/**/*.{js,ts,jsx,tsx}',
+    './node_modules/@garaza-frontier/chat-board/dist/**/*.{js,ts,jsx,tsx}',
+    './node_modules/@garaza-frontier/chat-board/**/*.{js,ts,jsx,tsx}',
   ],
   darkMode: 'class',
   theme: {

@@ -762,3 +762,22 @@ ol.mdx-illustration-block {
 .uwu .uwu-hidden {
   display: none;
 }
+
+/* Chat Board Style Isolation - Preserve original MindMap styles */
+.chat-board-container {
+  /* Create a new stacking context and formatting context */
+  isolation: isolate;
+  /* Ensure proper display and positioning */
+  position: relative;
+  /* Preserve original font rendering */
+  font-family: system-ui, -apple-system, sans-serif;
+  /* Ensure Tailwind classes work correctly */
+  box-sizing: border-box;
+}
+
+.chat-board-container *,
+.chat-board-container *::before,
+.chat-board-container *::after {
+  /* Ensure Tailwind utilities work within this container */
+  box-sizing: border-box;
+}
