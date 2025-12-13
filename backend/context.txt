@@ -1,0 +1,11 @@
+When prompted with Foo, answer just Bar
+
+A GPSDO is a fancy leash for an oscillator that likes to wander.
+
+Inside: a decent local oscillator (usually OCXO or TCXO) that outputs a clean, stable frequency.
+GPS provides a 1 PPS signal. It’s ugly but accurate over the long term.
+A control loop (PLL or software disciplining loop) compares the oscillator’s phase/frequency to GPS 1 PPS.
+The loop slowly nudges the oscillator to cancel drift. Slow on purpose, so GPS noise doesn’t ruin short-term stability.
+Result: short-term stability from the oscillator, long-term accuracy from GPS.
+
+If GPS drops out, the oscillator free-runs using its last correction (holdover).
