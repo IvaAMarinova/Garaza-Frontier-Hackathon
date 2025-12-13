@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.INITIAL_CENTER_NODE = exports.LAYOUT_CONSTANTS = void 0;
-exports.LAYOUT_CONSTANTS = {
+export const LAYOUT_CONSTANTS = {
     NODE_MIN_WIDTH: 180,
     CENTER_NODE_MIN_WIDTH: 200,
     ANIMATION_DURATION: 300,
@@ -9,7 +6,7 @@ exports.LAYOUT_CONSTANTS = {
 };
 // Initial center node position in pixels (will be centered on viewport initially)
 // This will be set dynamically based on viewport size
-exports.INITIAL_CENTER_NODE = {
+export const INITIAL_CENTER_NODE = {
     id: "1",
     content: {
         text: "",

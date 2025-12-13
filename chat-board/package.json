@@ -2,6 +2,7 @@
   "name": "@garaza-frontier/chat-board",
   "version": "0.1.1",
   "private": false,
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -16,14 +17,17 @@
     "./hooks/use-mind-map": {
       "import": "./dist/hooks/use-mind-map.js",
       "types": "./dist/hooks/use-mind-map.d.ts"
-    }
+    },
+    "./styles.css": "./styles.css"
   },
   "files": [
     "dist",
-    "components",
-    "hooks",
-    "lib"
+    "styles.css"
   ],
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/IvaAMarinova/Garaza-Frontier-Hackathon.git",

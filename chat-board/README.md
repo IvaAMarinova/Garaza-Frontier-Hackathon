@@ -1,6 +1,73 @@
+# @garaza-frontier/chat-board
+
+A React component library for interactive mind maps and chat interfaces.
+
+## Installation
+
+### From GitHub (for development)
+
+```bash
+npm install @garaza-frontier/chat-board@github:IvaAMarinova/Garaza-Frontier-Hackathon#main
+```
+
+Or add to your `package.json`:
+
+```json
+{
+  "dependencies": {
+    "@garaza-frontier/chat-board": "github:IvaAMarinova/Garaza-Frontier-Hackathon#main"
+  }
+}
+```
+
+### From npm (when published)
+
+```bash
+npm install @garaza-frontier/chat-board
+```
+
+## Usage
+
+### Import Components
+
+```tsx
+import { MindMap, NodeCard, useMindMap } from '@garaza-frontier/chat-board';
+import '@garaza-frontier/chat-board/styles.css'; // Required for animations
+```
+
+### Basic Example
+
+```tsx
+import { MindMap } from '@garaza-frontier/chat-board';
+import '@garaza-frontier/chat-board/styles.css';
+
+function App() {
+  return <MindMap initialText="My mind map" />;
+}
+```
+
+### Using the Hook
+
+```tsx
+import { useMindMap } from '@garaza-frontier/chat-board';
+
+function CustomMindMap() {
+  const { nodes, addNode, deleteNode } = useMindMap("Initial text");
+  // Use the hook to build custom UI
+}
+```
+
+## Requirements
+
+- React 18+ or 19+
+- React DOM 18+ or 19+
+- Tailwind CSS (for styling - the consuming app should have Tailwind configured)
+
+## Development
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
+### Getting Started
 
 First, run the development server:
 
