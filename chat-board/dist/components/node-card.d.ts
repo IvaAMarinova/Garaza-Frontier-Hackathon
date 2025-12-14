@@ -13,7 +13,9 @@ interface NodeCardProps {
     sessionId?: string;
     conceptId?: string;
     isDarkMode?: boolean;
+    onExpandConcept?: (conceptId: string, updatedConcept: any, newChildren: any[], newEdges: any[]) => void;
+    onIncrementWeight?: (conceptId: string, increment?: number) => void;
 }
-export declare function NodeCard({ node, onAddChild, onDelete: _onDelete, onEdit: _onEdit, onRemoveConnection: _onRemoveConnection, onMouseDown, isDragging, isCenter, isNewlyCreated, isUpdated, sessionId, conceptId, isDarkMode, }: NodeCardProps): import("react/jsx-runtime").JSX.Element;
+export declare function NodeCard({ node, onAddChild, onDelete: _onDelete, onEdit: _onEdit, onRemoveConnection: _onRemoveConnection, onMouseDown, isDragging, isCenter, isNewlyCreated, isUpdated, sessionId, conceptId, isDarkMode, onExpandConcept, onIncrementWeight, }: NodeCardProps): import("react/jsx-runtime").JSX.Element;
 export {};
 //# sourceMappingURL=node-card.d.ts.map

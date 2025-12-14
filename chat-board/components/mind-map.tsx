@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { useMindMap } from "../hooks/use-mind-map"
 import { NodeCard } from "./node-card"
 import GoalDisplay from "./goal-display"
@@ -10,6 +11,7 @@ interface MindMapProps {
   isDarkMode?: boolean
   containerHeight?: string
   onStartNewJourney?: () => void
+  onCongratulationsChange?: (show: boolean) => void
 }
 
 export default function MindMap({
@@ -17,6 +19,7 @@ export default function MindMap({
   isDarkMode = true,
   onStartNewJourney,
   containerHeight,
+  onCongratulationsChange,
 }: MindMapProps) {
   const {
     nodes,
@@ -37,6 +40,7 @@ export default function MindMap({
     deleteNode,
     editNode,
     removeConnection,
+    handleConceptExpansion,
     zoomIn,
     zoomOut,
     resetZoom,
@@ -44,18 +48,22 @@ export default function MindMap({
     handleCloseCongratulations,
     handleMouseDown,
     handleBackgroundMouseDown,
+    incrementNodeWeight,
   } = useMindMap(initialText, isDarkMode, onStartNewJourney)
+
+  // Notify parent when congratulations state changes
+  useEffect(() => {
+    if (onCongratulationsChange) {
+      onCongratulationsChange(showCongratulations)
+    }
+  }, [showCongratulations, onCongratulationsChange])
 
   return (
     <div
       ref={containerRef}
       className={`mind-map-canvas relative w-full overflow-hidden bg-gradient-to-br transition-colors duration-300 ${
         containerHeight ? "" : "h-screen"
-      } ${
-        isDarkMode
-          ? "from-slate-950 to-slate-900"
-          : "from-slate-50 to-slate-100"
-      } ${isPanningBackground ? "cursor-grabbing" : "cursor-grab"}`}
+      } from-slate-950 to-slate-900 ${isPanningBackground ? "cursor-grabbing" : "cursor-grab"}`}
       style={containerHeight ? { height: containerHeight } : undefined}
       onMouseDown={handleBackgroundMouseDown}
       role="application"
@@ -68,12 +76,15 @@ export default function MindMap({
             {/* Custom Cool Spinner */}
             <div className="relative w-24 h-24 mb-6">
               {/* Outer rotating ring */}
-              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-indigo-500 border-r-indigo-400 animate-spin"></div>
+              <div 
+                className="absolute inset-0 rounded-full border-4 border-transparent border-t-indigo-500 border-r-indigo-400"
+                style={{ animation: "spin 3s linear infinite" }}
+              ></div>
 
               {/* Middle rotating ring - opposite direction */}
               <div
                 className="absolute inset-2 rounded-full border-4 border-transparent border-b-purple-500 border-l-purple-400"
-                style={{ animation: "spin 1.5s linear infinite reverse" }}
+                style={{ animation: "spin 4s linear infinite reverse" }}
               ></div>
 
               {/* Inner pulsing dot */}
@@ -98,14 +109,10 @@ export default function MindMap({
               ></div>
             </div>
 
-            <span
-              className={`text-lg font-medium ${isDarkMode ? "text-slate-300" : "text-slate-700"}`}
-            >
+            <span className="text-lg font-medium text-slate-300">
               Creating your mind map...
             </span>
-            <span
-              className={`text-sm mt-1 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}
-            >
+            <span className="text-sm mt-1 text-slate-400">
               Mapping concepts and connections
             </span>
           </div>
@@ -122,11 +129,7 @@ export default function MindMap({
       {/* Session info */}
       {sessionId && !isLoading && (
         <div
-          className={`absolute top-4 left-4 rounded-lg px-3 py-2 text-xs backdrop-blur-sm ${
-            isDarkMode
-              ? "bg-slate-800/90 text-slate-400"
-              : "bg-white/90 text-slate-600"
-          }`}
+          className="absolute top-4 left-4 rounded-lg px-3 py-2 text-xs backdrop-blur-sm bg-slate-800/90 text-slate-400"
         >
           Session: {sessionId.slice(0, 8)}...
         </div>
@@ -136,11 +139,7 @@ export default function MindMap({
       <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
         <button
           onClick={zoomIn}
-          className={`w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center ${
-            isDarkMode
-              ? "bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-slate-100"
-              : "bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900"
-          }`}
+          className="w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-slate-100"
           aria-label="Zoom in"
         >
           <svg
@@ -160,11 +159,7 @@ export default function MindMap({
 
         <button
           onClick={zoomOut}
-          className={`w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center ${
-            isDarkMode
-              ? "bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-slate-100"
-              : "bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900"
-          }`}
+          className="w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-slate-100"
           aria-label="Zoom out"
         >
           <svg
@@ -183,11 +178,7 @@ export default function MindMap({
 
         <button
           onClick={resetZoom}
-          className={`w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center ${
-            isDarkMode
-              ? "bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-slate-100"
-              : "bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900"
-          }`}
+          className="w-10 h-10 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-slate-100"
           aria-label="Reset zoom"
         >
           <svg
@@ -206,13 +197,7 @@ export default function MindMap({
         </button>
 
         {/* Zoom level indicator */}
-        <div
-          className={`rounded-lg px-2 py-1 text-xs backdrop-blur-sm text-center ${
-            isDarkMode
-              ? "bg-slate-800/90 text-slate-400"
-              : "bg-white/90 text-slate-600"
-          }`}
-        >
+        <div className="rounded-lg px-2 py-1 text-xs backdrop-blur-sm text-center bg-slate-800/90 text-slate-400">
           {Math.round(zoomLevel * 100)}%
         </div>
       </div>
@@ -253,7 +238,6 @@ export default function MindMap({
                   stroke={connection!.strokeColor}
                   strokeWidth="2"
                   fill="none"
-                  className={draggingId ? "" : "transition-all duration-300"}
                   style={{
                     opacity: isNewConnection ? 0 : 1,
                     animation: isNewConnection
@@ -304,6 +288,8 @@ export default function MindMap({
                   (node as unknown as { conceptId?: string }).conceptId
                 }
                 isDarkMode={isDarkMode}
+                onExpandConcept={handleConceptExpansion}
+                onIncrementWeight={incrementNodeWeight}
               />
             </div>
           )

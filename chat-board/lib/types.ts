@@ -15,6 +15,10 @@ export interface Node {
   color: string
   parentId: string | null
   conceptId?: string
+  weight?: number
+  completed?: boolean
+  // Stored bounds for exact collision detection
+  bounds?: NodeBounds
 }
 
 export interface Position {
@@ -45,7 +49,7 @@ export interface FullGoal {
     concept_id: string
     depth: number
     content_markdown: string
-    doc_links: string[]
+    doc_links: Record<string, string>
   }>
   focus: Record<string, {
     interest_score: number

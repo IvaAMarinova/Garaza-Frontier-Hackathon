@@ -5,6 +5,7 @@ export { NodeCard } from './components/node-card'
 
 // Export hooks
 export { useMindMap } from './hooks/use-mind-map'
+export { useTypewriter } from './hooks/use-typewriter'
 
 // Export types
 export type { Node, NodeContent, Position } from './lib/types'
