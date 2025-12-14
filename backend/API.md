@@ -36,7 +36,7 @@ Base URL: `/v1/chat`
   Triggers concept extraction (incremental or full rebuild) and returns the graph snapshot.
 
 - `GET /sessions/{session_id}/concept-graph`
-  Returns the latest graph without rebuilding.
+  Returns the latest graph snapshot (concepts, edges, meta) without rebuilding.
 
 - `POST /sessions/{session_id}/concept-graph/{concept_id}/expand`
   ```json
@@ -153,7 +153,7 @@ Base URL: `/v1/chat`
   ```json
   { "force": false }
   ```
-  Creates the initial Depth-1 plan (or rebuilds when `force=true`).
+  Creates (or rebuilds) the initial Depth-1 plan as plain text grounded in `context.txt`. Every concept currently present in the concept graph is referenced once, and a trailing `Concept coverage: …` sentence summarizes how they map into the plan.
 
 - `GET /sessions/{session_id}/goal?create_if_missing=true`
   Fetches the current goal node (plan text + overlays + focus scores).
@@ -174,8 +174,8 @@ Base URL: `/v1/chat`
 ```json
 {
   "id": "goal",
-  "goal_statement": "Add telemetry pipeline drilldowns",
-  "answer_markdown": "1. Sketch the React data flow at a high level...",
+  "goal_statement": "Anchor telemetry UI around React component/data boundaries",
+  "answer_markdown": "Map telemetry behavior to a React component hierarchy that starts from layout shell and flows down into chart panes while keeping state at the dashboard owner. Describe props that drive chart variants, highlight how events bubble to aggregate state, and note the single effect that syncs with the telemetry API. Concept coverage: React telemetry dashboard intent (context aligned); Telemetry pipeline (state ownership summary); Issue-222 (risk mitigated via shared state); Detail-state-model (state slices enumerated).",
   "overlays": [
     {
       "id": "overlay-c1",
