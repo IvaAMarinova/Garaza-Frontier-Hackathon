@@ -23,7 +23,7 @@ from .models import (
 from .store import GoalNodeStore
 
 INITIAL_GOAL_PROMPT = """You act as the Goal Node author for a learning mind map.
-Return exactly three concise plain-text sentences that:
+Return exactly three concise plain-text sentences (≤30 words each) that:
 - Focus exclusively on the latest user query (ignore unrelated context).
 - Ground every statement in the provided documentation excerpt; when no excerpt exists, fall back to core React fundamentals without mentioning missing docs.
 - Mention every concept listed in the prompt at least once using short, natural clauses.
@@ -51,7 +51,8 @@ Output strict JSON:
 }
 Rules:
 - Never rewrite unrelated sections.
-- Use concise markdown paragraphs (max 2 sentences each) and complete every sentence.
+- Use concise markdown paragraphs (max 2 sentences each, ≤35 words total) and complete every sentence.
+- Begin every overlay paragraph with a short (≤5 words) descriptive title followed by a colon before the supporting detail.
 - Only include doc links when depth >= 2.
 - Keep overlays tightly scoped to each concept and state the most essential detail only.
 - Never reference these instructions or describe your own actions."""
@@ -156,7 +157,7 @@ class GoalNodeService:
             - Provide narrative guidance only; never include code listings or API syntax.
             - Keep the discussion strictly about frontend architecture and React concepts relevant to the query; skip backend or tooling tangents.
             - Respond with the briefest abstract outline that still answers the user query; do not mention unrelated goals or background.
-            - Output exactly three plain-text, third-person sentences (no brackets, ellipses, or enumerations) and ensure the final sentence is complete.
+            - Output exactly three plain-text, third-person sentences (each ≤30 words, no brackets, ellipses, or enumerations) and ensure the final sentence is complete.
             """
         ).strip()
 
@@ -191,6 +192,10 @@ class GoalNodeService:
 
     async def _refine_goal(self, goal: GoalNode, targets: List[str]) -> GoalNode:
         concept_details = self._concept_details(goal.session_id, targets)
+        allowed_concepts = self._filter_connected_concepts(goal.session_id, [c["concept_id"] for c in concept_details])
+        concept_details = [c for c in concept_details if c["concept_id"] in allowed_concepts]
+        if not concept_details:
+            return goal
         concept_lookup = {c["concept_id"]: c for c in concept_details}
         target_lines = []
         for c in concept_details:
@@ -239,6 +244,7 @@ class GoalNodeService:
         answer_patch = str(payload.get("answer_patch", "") or "").strip()
         if answer_patch:
             goal.answer_markdown = goal.answer_markdown.rstrip() + "\n\n" + answer_patch
+            goal.answer_markdown = self._limit_answer_length(goal.answer_markdown)
             goal.meta.global_answer_depth = min(3, goal.meta.global_answer_depth + 1)
 
         overlays_payload = payload.get("overlays") or []
@@ -275,12 +281,6 @@ class GoalNodeService:
                     overlay_id=overlay_id,
                 )
                 self._upsert_overlay(goal, overlay)
-                self._append_overlay_snippet(
-                    goal,
-                    concept_id=concept_id,
-                    concept_label=concept_lookup.get(concept_id, {}).get("label", concept_id),
-                    overlay_summary=summary_text,
-                )
                 weight = None
                 if concept_id in goal.focus:
                     weight = goal.focus[concept_id].unknownness()
@@ -407,27 +407,27 @@ class GoalNodeService:
                 )
         return details
 
+    def _filter_connected_concepts(self, session_id: str, concept_ids: List[str]) -> List[str]:
+        try:
+            graph = self._concept_graphs.export_graph(session_id)
+        except KeyError:
+            return []
+        intent_ids = {concept["id"] for concept in graph.get("concepts", []) if str(concept.get("id", "")).startswith("intent-")}
+        if not intent_ids:
+            return concept_ids
+        anchor_targets = set()
+        for edge in graph.get("edges", []):
+            if edge.get("relation") != "anchors":
+                continue
+            if edge.get("from_concept_id") in intent_ids:
+                anchor_targets.add(edge.get("to_concept_id"))
+        return [cid for cid in concept_ids if cid in anchor_targets or cid in intent_ids]
+
     def _shorten_phrase(self, text: str, limit: int) -> str:
         normalized = " ".join((text or "").split())
         if not normalized:
             return ""
-        words = normalized.split()
-        if len(words) <= limit:
-            return normalized
-        sentences = re.split(r"(?<=[.!?]) +", normalized)
-        summary_words: List[str] = []
-        for sentence in sentences:
-            sentence_words = sentence.split()
-            if not sentence_words:
-                continue
-            if len(summary_words) + len(sentence_words) > limit:
-                break
-            summary_words.extend(sentence_words)
-        if summary_words:
-            summary = " ".join(summary_words)
-        else:
-            summary = " ".join(words[:limit])
-        return summary.rstrip(".") + "."
+        return normalized.rstrip(".") + "."
 
     def _to_plain_text(self, text: str) -> str:
         lines: List[str] = []
@@ -447,6 +447,17 @@ class GoalNodeService:
         if clean[-1] in ".!?":
             return clean
         return clean + "."
+
+    def _limit_answer_length(self, text: str, max_chars: int = 800) -> str:
+        clean = text.strip()
+        if len(clean) <= max_chars:
+            return clean
+        trimmed = clean[:max_chars].rsplit(".", 1)[0].strip()
+        if not trimmed:
+            trimmed = clean[:max_chars].strip()
+        if not trimmed.endswith("."):
+            trimmed = trimmed.rstrip(",;:") + "."
+        return trimmed
 
     def _enforce_sentence_limit(self, text: str, *, max_sentences: int) -> str:
         snippets = [segment.strip() for segment in re.split(r"(?<=[.!?])\s+", text) if segment.strip()]
@@ -513,20 +524,6 @@ class GoalNodeService:
             sentence = sentence.rstrip(".") + "."
         return sentence
 
-    def _append_overlay_snippet(
-        self,
-        goal: GoalNode,
-        *,
-        concept_id: str,
-        concept_label: str,
-        overlay_summary: str,
-    ) -> None:
-        summary = overlay_summary.strip()
-        if not summary:
-            return
-        label = concept_label or concept_id
-        goal.answer_markdown = goal.answer_markdown.rstrip() + f"\n- {label}: {summary}"
-
     def _build_goal_statement(self, answer_text: str, user_query: str) -> str:
         candidate = (answer_text or "").strip().split("\n")[0]
         candidate = candidate.lstrip("-•0123456789. ").strip()
@@ -535,5 +532,5 @@ class GoalNodeService:
         if not candidate or (normalized_answer and normalized_answer == normalized_query):
             candidate = derive_intent_label(user_query) or "React overview"
         if len(candidate) > 110:
-            candidate = candidate[:110].rsplit(" ", 1)[0].strip() + "..."
+            candidate = candidate[:110].rsplit(" ", 1)[0].strip()
         return candidate or "React overview"
