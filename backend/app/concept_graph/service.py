@@ -56,7 +56,7 @@ class ConceptGraphService:
             messages=slice_messages,
             start_index=start_index,
         )
-        graph.merge(concepts=extraction.concepts, edges=extraction.edges)
+        graph.merge(concepts=extraction.concepts, edges=[])
         graph.meta.last_processed_index = len(messages) - 1
         self._ensure_intent_links(session_id, graph, session=session)
         self._graphs.upsert(session_id, graph)

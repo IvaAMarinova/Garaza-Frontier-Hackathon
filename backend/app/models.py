@@ -18,6 +18,12 @@ class SessionState(BaseModel):
     session_id: str
     created_ts: float
     messages: List[ChatMessage]
+    started_ts: Optional[float] = None
+
+
+class SessionElapsedResponse(BaseModel):
+    session_id: str
+    seconds_spent: float
 
 class GenerateRequest(BaseModel):
     content: str
@@ -73,7 +79,7 @@ class GoalOverlayModel(BaseModel):
     concept_id: str
     depth: int
     content_markdown: str
-    doc_links: List[str] = Field(default_factory=list)
+    doc_links: Dict[str, str] = Field(default_factory=dict)
 
 
 class FocusScoresModel(BaseModel):
@@ -101,16 +107,6 @@ class GoalNodeResponse(BaseModel):
 class GoalNodeInitRequest(BaseModel):
     force: bool = False
 
-
-class GoalInteractionModel(BaseModel):
-    concept_id: str
-    event: Literal["expand", "revisit", "confused", "mastered", "collapse"]
-    strength: float = Field(default=1.0, ge=0)
-
-
-class GoalInteractionRequest(BaseModel):
-    events: List[GoalInteractionModel] = Field(default_factory=list)
-    auto_refine: bool = True
 
 
 class ConceptExpandRequest(BaseModel):

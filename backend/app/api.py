@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from .models import (
     CreateSessionResponse,
     SessionState,
+    SessionElapsedResponse,
     GenerateRequest,
     GenerateResponse,
     ConceptGraphBuildRequest,
@@ -13,7 +14,6 @@ from .models import (
     ConceptGraphResponse,
     GoalNodeInitRequest,
     GoalNodeResponse,
-    GoalInteractionRequest,
     ConceptExpandRequest,
     ConceptDeclutterRequest,
     ConceptDeclutterResponse,
@@ -39,7 +39,20 @@ def build_router(
         s = chat.get_state(session_id)
         if not s:
             raise HTTPException(status_code=404, detail="session not found")
-        return SessionState(session_id=session_id, created_ts=s.created_ts, messages=s.messages)
+        return SessionState(
+            session_id=session_id,
+            created_ts=s.created_ts,
+            started_ts=s.first_user_ts,
+            messages=s.messages,
+        )
+
+    @router.post("/sessions/{session_id}/end", response_model=SessionElapsedResponse)
+    def end_session(session_id: str):
+        try:
+            elapsed = chat.get_elapsed_time(session_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="session not found")
+        return SessionElapsedResponse(session_id=session_id, seconds_spent=elapsed)
 
     @router.post("/sessions/{session_id}/generate", response_model=GenerateResponse)
     async def generate(session_id: str, req: GenerateRequest):
@@ -177,18 +190,6 @@ def build_router(
             goal = await goal_nodes.get_goal(session_id, create_if_missing=create_if_missing)
         except KeyError:
             raise HTTPException(status_code=404, detail="goal node not found")
-        return GoalNodeResponse(**goal_nodes.serialize(goal))
-
-    @router.post("/sessions/{session_id}/goal/interactions", response_model=GoalNodeResponse)
-    async def record_goal_interactions(session_id: str, req: GoalInteractionRequest):
-        events = [
-            InteractionEvent(concept_id=event.concept_id, event=event.event, strength=event.strength)
-            for event in req.events
-        ]
-        try:
-            goal = await goal_nodes.apply_interactions(session_id, events, auto_refine=req.auto_refine)
-        except KeyError:
-            raise HTTPException(status_code=404, detail="session not found")
         return GoalNodeResponse(**goal_nodes.serialize(goal))
 
     return router

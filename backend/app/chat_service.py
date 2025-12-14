@@ -1,3 +1,4 @@
+import time
 from typing import Optional, List
 
 from .config import CHAT_MAX_HISTORY, OPENAI_MODEL
@@ -57,3 +58,10 @@ class ChatService:
         if not session:
             raise KeyError("session not found")
         return build_relational_view(session.messages)
+
+    def get_elapsed_time(self, session_id: str) -> float:
+        session = self._store.get_session(session_id)
+        if not session:
+            raise KeyError("session not found")
+        start = session.first_user_ts or session.created_ts
+        return max(0.0, time.time() - start)
