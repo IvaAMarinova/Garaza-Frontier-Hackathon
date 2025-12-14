@@ -6,6 +6,7 @@ from ..context_loader import load_initial_context
 from ..openai_client import OpenAIClient
 from ..store import InMemoryChatStore
 from ..concept_graph import ConceptGraphService
+from ..text_utils import derive_intent_label, normalize_text
 from ..models import ChatMessage
 from .models import (
     GoalNode,
@@ -20,13 +21,14 @@ from .models import (
 from .store import GoalNodeStore
 
 INITIAL_GOAL_PROMPT = """You act as the Goal Node author for a learning mind map.
-Return a single markdown answer that:
+Return a single plain-text answer that:
 - Focuses exclusively on the latest user query (ignore unrelated context).
-- Reflects only the documentation context that is provided to you (do not invent new facts).
-- Summarises the approach in no more than 4 short sentences or bullet points.
+- Grounds every statement in the provided documentation excerpt; if something is missing, state that it is outside scope.
+- Mentions every concept listed in the prompt at least once using short, natural clauses.
+- Summarises the approach in no more than four short sentences (no bullets, numbering, or markdown).
 - Stays abstract and action-oriented—describe phases, not code or API calls.
 - Frames every idea through the lens of frontend engineering with React (components, state, hooks, data flow).
-- Briefly signal which specific concepts should be expanded later (mention them inline as “expandable” hooks).
+- Briefly signal which specific concepts should be expanded later by weaving concise hint phrases inline.
 - Ensure the response directly answers the user's query with a clear Depth-1 React plan.
 - Avoids analogies, philosophy, introductions, or conclusions.
 - Never outputs literal code, pseudo-code, fenced snippets, or TODO lists.
@@ -112,12 +114,29 @@ class GoalNodeService:
         self._store.upsert(session_id, goal)
         return goal
 
+    async def refine_for_concepts(self, session_id: str, concept_ids: List[str]) -> GoalNode:
+        goal = await self.get_goal(session_id, create_if_missing=True)
+        if not concept_ids:
+            return goal
+        unique_targets: List[str] = []
+        for concept_id in concept_ids:
+            concept_key = concept_id.strip()
+            if not concept_key:
+                continue
+            goal.ensure_focus_entry(concept_key)
+            if concept_key not in unique_targets:
+                unique_targets.append(concept_key)
+        if not unique_targets:
+            return goal
+        return await self._refine_goal(goal, unique_targets)
+
     async def _generate_initial_goal(self, session_id: str) -> GoalNode:
         session = self._chat_store.get_session(session_id)
         if not session:
             raise KeyError("session not found")
         user_query = self._extract_query(session.messages)
-        concept_snapshot = self._conceptual_outline(session_id)
+        concept_inventory = self._concept_inventory(session_id)
+        concept_snapshot = self._format_concept_outline(concept_inventory)
         user_prompt = textwrap.dedent(
             f"""
             User intent:
@@ -132,10 +151,11 @@ class GoalNodeService:
             Instructions:
             - Use the conceptual map above to produce a succinct, React-focused plan that solves the user's request.
             - Ground every statement in the provided documentation context. If the context does not mention something, say that it is outside scope.
+            - Mention every listed concept at least once in a short, readable clause.
             - Provide narrative guidance only; never include code listings or API syntax.
             - Keep the discussion strictly about frontend architecture and React concepts relevant to the query; skip backend or tooling tangents.
             - Respond with the briefest abstract outline that still answers the user query; do not mention unrelated goals or background.
-            - Output at most four short sentences or bullets and ensure the final sentence is complete.
+            - Output plain text sentences only and ensure the final sentence is complete.
             """
         ).strip()
 
@@ -148,11 +168,13 @@ class GoalNodeService:
             messages=messages,
             max_output_tokens=600,
         )
-        answer_clean = answer.strip()
-        first_sentence = answer_clean.split("\n")[0].strip()
-        if first_sentence.endswith("."):
-            first_sentence = first_sentence[:-1]
-        short_goal = first_sentence if first_sentence else "Goal overview"
+        answer_clean = self._to_plain_text(answer)
+        coverage = self._build_concept_coverage(concept_inventory)
+        if coverage:
+            answer_clean = f"{self._ensure_sentence_end(answer_clean)} {coverage}".strip()
+        else:
+            answer_clean = self._ensure_sentence_end(answer_clean)
+        short_goal = self._build_goal_statement(answer_clean, user_query)
         goal = GoalNode(
             session_id=session_id,
             goal_statement=short_goal,
@@ -302,18 +324,44 @@ class GoalNodeService:
             return messages[-1].content.strip()
         return "Help me reason about this topic."
 
-    def _conceptual_outline(self, session_id: str) -> str:
+    def _concept_inventory(self, session_id: str) -> List[Dict[str, str]]:
         try:
             graph = self._concept_graphs.export_graph(session_id)
         except KeyError:
-            return "No concept graph yet."
-        concepts = graph.get("concepts") or []
+            return []
+        inventory: List[Dict[str, str]] = []
+        for concept in (graph.get("concepts") or [])[:8]:
+            label = str(concept.get("label", "concept")).strip() or "concept"
+            summary = str(concept.get("summary", "")).strip()
+            inventory.append(
+                {
+                    "label": label,
+                    "summary": summary,
+                }
+            )
+        return inventory
+
+    def _format_concept_outline(self, inventory: List[Dict[str, str]]) -> str:
+        if not inventory:
+            return "No concepts extracted."
         snippets = []
-        for concept in concepts[:8]:
-            label = concept.get("label", "concept")
-            summary = concept.get("summary", "")
+        for item in inventory:
+            label = item.get("label", "concept")
+            summary = self._shorten_phrase(item.get("summary", ""), limit=18)
             snippets.append(f"- {label}: {summary}")
-        return "\n".join(snippets) if snippets else "No concepts extracted."
+        return "\n".join(snippets)
+
+    def _build_concept_coverage(self, inventory: List[Dict[str, str]]) -> str:
+        if not inventory:
+            return ""
+        pieces = []
+        for item in inventory:
+            label = item.get("label", "concept")
+            summary = self._shorten_phrase(item.get("summary", ""), limit=10)
+            note = summary if summary else "context aligned"
+            pieces.append(f"{label} ({note})")
+        sentence = "Concept coverage: " + "; ".join(pieces)
+        return self._ensure_sentence_end(sentence)
 
     def _concept_details(self, session_id: str, concept_ids: List[str]) -> List[Dict[str, str]]:
         try:
@@ -350,6 +398,33 @@ class GoalNodeService:
                 )
         return details
 
+    def _shorten_phrase(self, text: str, limit: int) -> str:
+        words = (text or "").split()
+        if not words:
+            return ""
+        if len(words) <= limit:
+            return " ".join(words)
+        return " ".join(words[:limit]) + "..."
+
+    def _to_plain_text(self, text: str) -> str:
+        lines: List[str] = []
+        for raw_line in (text or "").splitlines():
+            stripped = raw_line.strip()
+            stripped = stripped.lstrip("-*•0123456789. )(").strip()
+            if stripped:
+                lines.append(stripped)
+        flat = " ".join(lines)
+        flat = " ".join(flat.split())
+        return self._ensure_sentence_end(flat)
+
+    def _ensure_sentence_end(self, text: str) -> str:
+        clean = (text or "").rstrip()
+        if not clean:
+            return ""
+        if clean[-1] in ".!?":
+            return clean
+        return clean + "."
+
     def _summarize_overlay_text(self, content: str) -> str:
         snippet_source = content.strip()
         if not snippet_source:
@@ -377,3 +452,14 @@ class GoalNodeService:
             return
         label = concept_label or concept_id
         goal.answer_markdown = goal.answer_markdown.rstrip() + f"\n- {label}: {summary}"
+
+    def _build_goal_statement(self, answer_text: str, user_query: str) -> str:
+        candidate = (answer_text or "").strip().split("\n")[0]
+        candidate = candidate.lstrip("-•0123456789. ").strip()
+        normalized_answer = normalize_text(candidate)
+        normalized_query = normalize_text(user_query)
+        if not candidate or (normalized_answer and normalized_answer == normalized_query):
+            candidate = derive_intent_label(user_query) or "React overview"
+        if len(candidate) > 110:
+            candidate = candidate[:110].rsplit(" ", 1)[0].strip() + "..."
+        return candidate or "React overview"

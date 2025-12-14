@@ -2,7 +2,6 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-
 from app.api import build_router
 from app.chat_service import ChatService
 from app.concept_graph import ConceptGraphService

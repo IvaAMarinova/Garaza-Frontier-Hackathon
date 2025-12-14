@@ -847,7 +847,7 @@ _CONCEPT_GRAPH_HTML = """<!DOCTYPE html>
       letter-spacing: 0.08em;
       opacity: 0.8;
     }
-    input, select {
+    input, select, textarea {
       width: 100%;
       padding: 0.65rem 0.8rem;
       margin-top: 0.25rem;
@@ -857,6 +857,10 @@ _CONCEPT_GRAPH_HTML = """<!DOCTYPE html>
       font-size: 0.95rem;
       background: var(--bg);
       color: inherit;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
     }
     button {
       background: var(--accent);
@@ -1030,6 +1034,31 @@ _CONCEPT_GRAPH_HTML = """<!DOCTYPE html>
         </label>
         <button id="expand-btn">Expand concept</button>
       </div>
+      <pre id="expand-response">{}</pre>
+    </section>
+
+    <section class="card">
+      <h2>Declutter expansions</h2>
+      <div class="controls">
+        <label style="flex:1;">
+          Concept ID
+          <input id="declutter-concept-id" placeholder="concept id" />
+        </label>
+        <label style="flex:1;">
+          Expansion indices (comma separated)
+          <input id="declutter-indices" placeholder="Leave blank to crunch all expansions" />
+        </label>
+      </div>
+      <div class="controls">
+        <label style="width:200px; text-transform:none; letter-spacing:normal;">
+          <input type="checkbox" id="declutter-force" /> Force child concepts
+        </label>
+        <label style="width:220px; text-transform:none; letter-spacing:normal;">
+          <input type="checkbox" id="declutter-auto-refine" checked /> Auto refine goal node
+        </label>
+        <button id="declutter-btn">Declutter concept</button>
+      </div>
+      <pre id="declutter-response">{}</pre>
     </section>
 
     <section class="grid">
@@ -1105,6 +1134,13 @@ _CONCEPT_GRAPH_HTML = """<!DOCTYPE html>
     const expandStrengthInput = document.getElementById("expand-strength");
     const expandAutoRefineInput = document.getElementById("expand-auto-refine");
     const expandBtn = document.getElementById("expand-btn");
+    const expandResult = document.getElementById("expand-response");
+    const declutterConceptInput = document.getElementById("declutter-concept-id");
+    const declutterIndicesInput = document.getElementById("declutter-indices");
+    const declutterForceInput = document.getElementById("declutter-force");
+    const declutterAutoRefineInput = document.getElementById("declutter-auto-refine");
+    const declutterBtn = document.getElementById("declutter-btn");
+    const declutterResult = document.getElementById("declutter-response");
 
     function setLoading(isLoading, message) {
       buildBtn.disabled = isLoading;
@@ -1282,6 +1318,8 @@ _CONCEPT_GRAPH_HTML = """<!DOCTYPE html>
         if (!res.ok) {
           throw new Error("Request failed (" + res.status + ")");
         }
+        const data = await res.json();
+        expandResult.textContent = JSON.stringify(data, null, 2);
         await handleRefresh();
         statusEl.classList.remove("error");
         statusEl.textContent = "Concept expanded and goal node refined.";
@@ -1292,9 +1330,67 @@ _CONCEPT_GRAPH_HTML = """<!DOCTYPE html>
       }
     }
 
+    async function handleDeclutter() {
+      const sessionId = sessionInput.value.trim();
+      if (!sessionId) {
+        setError("Provide a session ID.");
+        return;
+      }
+      setStoredSessionId(sessionId);
+      const conceptId = declutterConceptInput.value.trim();
+      if (!conceptId) {
+        setError("Provide a concept ID to declutter.");
+        return;
+      }
+      const indicesRaw = declutterIndicesInput.value
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const payload = {
+        force_children: declutterForceInput.checked,
+        auto_refine: declutterAutoRefineInput.checked,
+      };
+      if (indicesRaw.length) {
+        const parsed = indicesRaw
+          .map((value) => parseInt(value, 10))
+          .filter((value) => !Number.isNaN(value));
+        if (parsed.length) {
+          payload.expansion_indices = parsed;
+        }
+      }
+      try {
+        declutterBtn.disabled = true;
+        statusEl.classList.remove("error");
+        statusEl.textContent = "Decluttering concept…";
+        const res = await fetch(
+          `/v1/chat/sessions/${sessionId}/concept-graph/${encodeURIComponent(
+            conceptId
+          )}/declutter`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
+        if (!res.ok) {
+          throw new Error("Request failed (" + res.status + ")");
+        }
+        const data = await res.json();
+        declutterResult.textContent = JSON.stringify(data, null, 2);
+        await handleRefresh();
+        statusEl.classList.remove("error");
+        statusEl.textContent = "Declutter complete.";
+      } catch (err) {
+        setError(err.message || "Failed to declutter concept.");
+      } finally {
+        declutterBtn.disabled = false;
+      }
+    }
+
     buildBtn.addEventListener("click", handleBuild);
     refreshBtn.addEventListener("click", handleRefresh);
     expandBtn.addEventListener("click", handleExpand);
+    declutterBtn.addEventListener("click", handleDeclutter);
   </script>
 </body>
 </html>

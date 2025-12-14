@@ -1,21 +1,23 @@
 import textwrap
 from dataclasses import dataclass
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 from ..config import OPENAI_CONCEPT_MODEL
 from ..models import ChatMessage
 from ..openai_client import OpenAIClient
 from ..context_loader import load_initial_context
+from ..id_utils import generate_concept_id, generate_edge_id
 
 MAX_OUTLINE_CONCEPTS = 8
 SUMMARY_WORD_LIMIT = 18
 
-SYSTEM_PROMPT = """You are a careful concept graph builder. Digest chat transcripts and extract
-key concepts (features, entities, problems, decisions) plus the logical relations between them.
-Start each conceptualisation pass with an eagle-eye outline only: surface the broadest subtopics,
-keep summaries extremely short, and defer deep dives until a follow-up request. Use concise canonical
-labels, capture chronology with the provided indices, and always return strict JSON matching the schema
-described in the user instructions. Do not include any extra commentary or restate these instructions."""
+SYSTEM_PROMPT = """You are a careful concept graph builder for a React-focused learning assistant.
+Digest chat transcripts, extract key frontend concepts (features, UI states, data-flow decisions),
+and relate them with React terminology (components, state, props, effects). Start each conceptualisation
+pass with an eagle-eye outline only: surface the broadest subtopics, keep summaries extremely short,
+and defer deep dives until a follow-up request. Use concise canonical labels, capture chronology with
+the provided indices, and always return strict JSON matching the schema described in the user instructions.
+Do not include any extra commentary or restate these instructions."""
 
 
 @dataclass
@@ -162,8 +164,8 @@ class ConceptExtractor:
         if not isinstance(edges_raw, list):
             edges_raw = []
 
-        concepts = self._shape_concepts(concepts_raw)
-        edges = self._filter_edges(edges_raw, concepts)
+        concepts, lookup = self._shape_concepts(concepts_raw)
+        edges = self._filter_edges(edges_raw, lookup)
         return ConceptExtractionResult(concepts=concepts, edges=edges)
 
     @staticmethod
@@ -176,8 +178,11 @@ class ConceptExtractor:
             formatted.append(f"[{idx}] ({msg.role}) id={msg.id}: {snippet}")
         return "\n".join(formatted)
 
-    def _shape_concepts(self, concepts: List[Dict[str, object]]) -> List[Dict[str, object]]:
+    def _shape_concepts(
+        self, concepts: List[Dict[str, object]]
+    ) -> Tuple[List[Dict[str, object]], Dict[str, str]]:
         shaped: List[Dict[str, object]] = []
+        lookup: Dict[str, str] = {}
         seen_labels: Set[str] = set()
         for raw in concepts:
             if not isinstance(raw, dict):
@@ -191,15 +196,27 @@ class ConceptExtractor:
             summary = str(raw.get("summary", "")).strip()
             if summary:
                 raw["summary"] = self._truncate_words(summary, self._summary_word_limit)
+            original_id = str(raw.get("id") or "").strip()
+            seed = label or original_id or f"concept-{len(shaped)+1}"
+            concept_id = generate_concept_id(seed)
+            raw["id"] = concept_id
             shaped.append(raw)
+            self._register_lookup(lookup, original_id, concept_id)
+            self._register_lookup(lookup, label, concept_id)
+            for alias in raw.get("aliases") or []:
+                self._register_lookup(lookup, alias, concept_id)
+            self._register_lookup(lookup, concept_id, concept_id)
             if len(shaped) >= self._max_concepts:
                 break
-        return shaped
+        return shaped, lookup
 
-    def _filter_edges(self, edges: List[Dict[str, object]], concepts: List[Dict[str, object]]) -> List[Dict[str, object]]:
-        if not concepts:
+    def _filter_edges(
+        self,
+        edges: List[Dict[str, object]],
+        lookup: Dict[str, str],
+    ) -> List[Dict[str, object]]:
+        if not lookup:
             return []
-        allowed_ids = self._collect_allowed_ids(concepts)
         shaped: List[Dict[str, object]] = []
         for raw in edges:
             if not isinstance(raw, dict):
@@ -208,22 +225,33 @@ class ConceptExtractor:
             dst = str(raw.get("to_concept_id", "")).strip()
             if not src or not dst:
                 continue
-            if allowed_ids and (src not in allowed_ids or dst not in allowed_ids):
+            from_id = self._resolve_lookup(src, lookup)
+            to_id = self._resolve_lookup(dst, lookup)
+            if not from_id or not to_id:
                 continue
+            relation = str(raw.get("relation", "related_to") or "related_to").strip()
+            raw["from_concept_id"] = from_id
+            raw["to_concept_id"] = to_id
+            raw["relation"] = relation
+            raw["id"] = generate_edge_id(f"{from_id}->{to_id}:{relation}")
             shaped.append(raw)
         return shaped
 
     @staticmethod
-    def _collect_allowed_ids(concepts: List[Dict[str, object]]) -> Set[str]:
-        allowed: Set[str] = set()
-        for concept in concepts:
-            cid = str(concept.get("id") or "").strip()
-            if cid:
-                allowed.add(cid)
-            label = str(concept.get("label") or "").strip()
-            if label:
-                allowed.add(label)
-        return allowed
+    def _register_lookup(lookup: Dict[str, str], key: Optional[str], concept_id: str) -> None:
+        if not key:
+            return
+        lookup[key] = concept_id
+        lookup[key.lower()] = concept_id
+
+    @staticmethod
+    def _resolve_lookup(key: str, lookup: Dict[str, str]) -> Optional[str]:
+        if not key:
+            return None
+        if key in lookup:
+            return lookup[key]
+        lowered = key.lower()
+        return lookup.get(lowered)
 
     def _truncate_words(self, text: str, limit: int) -> str:
         words = text.split()

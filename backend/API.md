@@ -36,7 +36,7 @@ Base URL: `/v1/chat`
   Triggers concept extraction (incremental or full rebuild) and returns the graph snapshot.
 
 - `GET /sessions/{session_id}/concept-graph`
-  Returns the latest graph without rebuilding.
+  Returns the latest graph snapshot (concepts, edges, meta) without rebuilding.
 
 - `POST /sessions/{session_id}/concept-graph/{concept_id}/expand`
   ```json
@@ -47,13 +47,68 @@ Base URL: `/v1/chat`
     "auto_refine": true
   }
   ```
-  Annotates a concept with a new expansion/weight, triggers the Goal Node refinement pass, and returns the updated concept object.
+  Annotates a concept with a new expansion/weight, triggers the Goal Node refinement pass, and returns:
+  ```json
+  {
+    "concept": { "...updated concept..." },
+    "new_children": [
+      {
+        "id": "detail-state-model",
+        "label": "State modeling constraints",
+        "type": "concept",
+        "summary": "Capture the telemetry state slices (selected metric, polling cadence, streaming buffer).",
+        "first_seen_index": 3,
+        "last_seen_index": 3,
+        "weight": 0.31,
+        "expansions": []
+      }
+    ],
+    "new_edges": [
+      {
+        "id": "edge-detail",
+        "from_concept_id": "feature-123",
+        "to_concept_id": "detail-state-model",
+        "relation": "refines",
+        "introduced_index": 3
+      }
+    ]
+  }
+  ```
+  When two or more expansions accumulate, decluttering is triggered automatically: the parent summary absorbs the existing expansions, and any truly new ideas are emitted via `new_children` + `new_edges`.
+
+- `POST /sessions/{session_id}/concept-graph/{concept_id}/declutter`
+  ```json
+  {
+    "force_children": false,
+    "expansion_indices": [0, 2],
+    "auto_refine": true
+  }
+  ```
+  Explicitly runs the declutter pass (useful when you want to choose which expansions to promote). Returns the updated parent, any child concepts created, and the edges linking them:
+  ```json
+  {
+    "parent": { "...concept after summarising the expansions..." },
+    "children": [{ "...new child concept..." }],
+    "edges": [{ "...refines edge..." }],
+    "skipped_expansions": [5]
+  }
+  ```
 
 ### Graph Structure Example
 
 ```json
 {
   "concepts": [
+    {
+      "id": "intent-SESSION",
+      "label": "React telemetry dashboard intent",
+      "type": "intent",
+      "summary": "Central React intent: React telemetry dashboard intent",
+      "first_seen_index": 0,
+      "last_seen_index": 0,
+      "weight": 1.0,
+      "expansions": []
+    },
     {
       "id": "feature-123",
       "label": "Telemetry pipeline",
@@ -69,6 +124,13 @@ Base URL: `/v1/chat`
     }
   ],
   "edges": [
+    {
+      "id": "edge-intent",
+      "from_concept_id": "intent-SESSION",
+      "to_concept_id": "feature-123",
+      "relation": "anchors",
+      "introduced_index": 0
+    },
     {
       "id": "edge-789",
       "from_concept_id": "feature-123",
@@ -91,7 +153,7 @@ Base URL: `/v1/chat`
   ```json
   { "force": false }
   ```
-  Creates the initial Depth-1 plan (or rebuilds when `force=true`).
+  Creates (or rebuilds) the initial Depth-1 plan as plain text grounded in `context.txt`. Every concept currently present in the concept graph is referenced once, and a trailing `Concept coverage: …` sentence summarizes how they map into the plan.
 
 - `GET /sessions/{session_id}/goal?create_if_missing=true`
   Fetches the current goal node (plan text + overlays + focus scores).
@@ -112,8 +174,8 @@ Base URL: `/v1/chat`
 ```json
 {
   "id": "goal",
-  "goal_statement": "Add telemetry pipeline drilldowns",
-  "answer_markdown": "1. Sketch the React data flow at a high level...",
+  "goal_statement": "Anchor telemetry UI around React component/data boundaries",
+  "answer_markdown": "Map telemetry behavior to a React component hierarchy that starts from layout shell and flows down into chart panes while keeping state at the dashboard owner. Describe props that drive chart variants, highlight how events bubble to aggregate state, and note the single effect that syncs with the telemetry API. Concept coverage: React telemetry dashboard intent (context aligned); Telemetry pipeline (state ownership summary); Issue-222 (risk mitigated via shared state); Detail-state-model (state slices enumerated).",
   "overlays": [
     {
       "id": "overlay-c1",
@@ -161,3 +223,4 @@ Base URL: `/v1/chat`
    ```
    POST /v1/chat/sessions/{session_id}/concept-graph/{concept_id}/expand
    ```
+   The response echoes the updated concept and includes any `new_children` + `new_edges` that were produced by the declutter pass.

@@ -118,3 +118,22 @@ class ConceptExpandRequest(BaseModel):
     weight: Optional[float] = None
     strength: float = Field(default=1.0, ge=0)
     auto_refine: bool = True
+
+
+class ConceptDeclutterRequest(BaseModel):
+    expansion_indices: Optional[List[int]] = None
+    force_children: bool = False
+    auto_refine: bool = True
+
+
+class ConceptDeclutterResponse(BaseModel):
+    parent: ConceptNodeModel
+    children: List[ConceptNodeModel] = Field(default_factory=list)
+    edges: List[ConceptEdgeModel] = Field(default_factory=list)
+    skipped_expansions: List[int] = Field(default_factory=list)
+
+
+class ConceptExpandResponse(BaseModel):
+    concept: ConceptNodeModel
+    new_children: List[ConceptNodeModel] = Field(default_factory=list)
+    new_edges: List[ConceptEdgeModel] = Field(default_factory=list)
