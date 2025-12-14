@@ -15,6 +15,8 @@ export interface Node {
   color: string
   parentId: string | null
   conceptId?: string
+  weight?: number
+  completed?: boolean
 }
 
 export interface Position {

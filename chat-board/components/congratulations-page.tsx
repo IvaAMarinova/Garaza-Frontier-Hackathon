@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react"
 import Confetti from "react-confetti"
-import { Goal } from "../lib/types"
+import { GoalResponse } from "../lib/api"
 
 interface CongratulationsPageProps {
-  goal: Goal | null
+  goal: GoalResponse | null
   initialText?: string
   onClose: () => void
   isDarkMode?: boolean

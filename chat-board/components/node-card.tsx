@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Sparkles } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Plus, Sparkles, ChevronDown } from "lucide-react"
 import type { Node, NodeContent } from "../lib/types"
 import { CodeBlock } from "./code-block"
-import { expandConcept, recordGoalInteractions } from "../lib/api"
+import { expandConcept } from "../lib/api"
 
 interface NodeCardProps {
   node: Node
@@ -20,6 +20,13 @@ interface NodeCardProps {
   sessionId?: string
   conceptId?: string
   isDarkMode?: boolean
+  onExpandConcept?: (
+    conceptId: string,
+    updatedConcept: any,
+    newChildren: any[],
+    newEdges: any[]
+  ) => void
+  onIncrementWeight?: (conceptId: string, increment?: number) => void
 }
 
 export function NodeCard({
@@ -36,34 +43,36 @@ export function NodeCard({
   sessionId,
   conceptId,
   isDarkMode = false,
+  onExpandConcept,
+  onIncrementWeight,
 }: NodeCardProps) {
   const [showTextInput, setShowTextInput] = useState(false)
   const [inputText, setInputText] = useState("")
   const [isExpanding, setIsExpanding] = useState(false)
+  const [isConceptExpanding, setIsConceptExpanding] = useState(false)
+  const [typewriterText, setTypewriterText] = useState(node.content.text)
+  const [isTyping, setIsTyping] = useState(false)
 
   const handleTextSubmit = async () => {
     if (inputText.trim() && sessionId && conceptId) {
       setIsExpanding(true)
       try {
+        // Increment weight on interaction
+        if (onIncrementWeight && conceptId) {
+          onIncrementWeight(conceptId, 1)
+        }
+
         // Expand the concept using the API
         await expandConcept(sessionId, conceptId, {
           expansion: inputText.trim(),
-          weight: 0.8,
-          strength: 1.0,
-          auto_refine: true
+          auto_refine: true,
         })
 
-        // Record the interaction
-        await recordGoalInteractions(sessionId, {
-          events: [
-            { concept_id: conceptId, event: 'expand', strength: 1.0 }
-          ],
-          auto_refine: true
-        })
+
 
         // Create child nodes locally
         onAddChild(node.id, { text: inputText.trim() })
-        
+
         setInputText("")
         setShowTextInput(false)
       } catch {
@@ -91,6 +100,77 @@ export function NodeCard({
     }
   }
 
+
+
+  useEffect(() => {
+    if (isUpdated && node.content.text !== typewriterText) {
+      // Node was updated, start typewriter effect
+      typewriterEffect(node.content.text)
+    } else if (!isUpdated && typewriterText !== node.content.text) {
+      // Initial load or normal update, set text immediately
+      setTypewriterText(node.content.text)
+    }
+  }, [node.content.text, isUpdated, typewriterText])
+
+  const typewriterEffect = (text: string) => {
+    setIsTyping(true)
+    setTypewriterText("")
+    let index = 0
+
+    const timer = setInterval(() => {
+      if (index < text.length) {
+        setTypewriterText((prev) => prev + text[index])
+        index++
+      } else {
+        clearInterval(timer)
+        setIsTyping(false)
+      }
+    }, 30) // Adjust speed here (lower = faster)
+
+    return () => clearInterval(timer)
+  }
+
+  const handleConceptExpansion = async () => {
+    if (!sessionId || !conceptId || !onExpandConcept) return
+
+    setIsConceptExpanding(true)
+    try {
+      // Increment weight on concept expansion
+      if (onIncrementWeight && conceptId) {
+        onIncrementWeight(conceptId, 1)
+      }
+
+      const response = await expandConcept(sessionId, conceptId, {
+        auto_refine: true,
+      })
+
+      // Start typewriter effect with new content if it changed
+      const newContent = response.concept.summary
+      if (newContent && newContent !== typewriterText && newContent !== node.content.text) {
+        typewriterEffect(newContent)
+      }
+
+      // Call the callback to update the mind map
+      onExpandConcept(
+        conceptId,
+        response.concept,
+        response.new_children,
+        response.new_edges
+      )
+    } catch (error) {
+      console.error("Failed to expand concept:", error)
+    } finally {
+      setIsConceptExpanding(false)
+    }
+  }
+
+  const handleNodeClick = async (e: React.MouseEvent) => {
+    // Only increment weight on actual clicks, not drags
+    if (e.detail === 1 && onIncrementWeight && conceptId) {
+      onIncrementWeight(conceptId, 1)
+    }
+  }
+
   return (
     <div
       className={`group relative px-2 py-2 rounded-xl border-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg select-none ${node.color} ${
@@ -101,6 +181,7 @@ export function NodeCard({
         isUpdated ? "ring-1 ring-green-400/30" : ""
       }`}
       onMouseDown={(e) => onMouseDown(e, node.id)}
+      onClick={handleNodeClick}
       aria-label={`Draggable node: ${node.content.header || node.content.text}`}
     >
       {/* Invisible drag overlay to ensure entire node is draggable */}
@@ -116,12 +197,17 @@ export function NodeCard({
         aria-label="Node content"
       >
         {node.content.header && (
-          <div className={`font-semibold text-sm select-none ${isDarkMode ? "opacity-80" : "opacity-70"}`}>
+          <div
+            className={`font-semibold text-sm select-none ${isDarkMode ? "opacity-80" : "opacity-70"}`}
+          >
             {node.content.header}
           </div>
         )}
         <div className="whitespace-pre-wrap leading-relaxed select-none">
-          {node.content.text}
+          {typewriterText}
+          {isTyping && (
+            <span className="animate-pulse text-blue-500 ml-0.5">|</span>
+          )}
         </div>
         {node.content.codeBlock && (
           <CodeBlock
@@ -129,6 +215,38 @@ export function NodeCard({
             code={node.content.codeBlock.code}
             isDarkMode={isDarkMode}
           />
+        )}
+
+
+
+        {/* Expand concept button */}
+        {sessionId && conceptId && onExpandConcept && (
+          <div className="flex justify-center mt-3">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleConceptExpansion()
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              disabled={isConceptExpanding}
+              className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full transition-all duration-300 transform hover:scale-105 ${
+                isDarkMode
+                  ? "bg-transparent hover:bg-slate-700/20 text-slate-400 hover:text-slate-200"
+                  : "bg-transparent hover:bg-gray-100/50 text-slate-500 hover:text-slate-700"
+              } ${isConceptExpanding ? "opacity-60 cursor-not-allowed scale-95 animate-pulse" : "cursor-pointer"}`}
+              title="Expand this concept for more details"
+            >
+              {isConceptExpanding ? (
+                <div className="animate-spin rounded-full h-3 w-3 border border-current border-t-transparent"></div>
+              ) : (
+                <ChevronDown className="w-3 h-3 transition-transform duration-300 group-hover:translate-y-0.5" />
+              )}
+              <span className="text-xs font-medium">
+                {isConceptExpanding ? "expanding..." : "explain more"}
+              </span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -149,13 +267,15 @@ export function NodeCard({
           }}
           onMouseDown={(e) => e.stopPropagation()}
           className={`p-1 rounded-full shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 border ${
-            isDarkMode 
-              ? "bg-slate-700 border-slate-600" 
+            isDarkMode
+              ? "bg-slate-700 border-slate-600"
               : "bg-white border-slate-200"
           }`}
           title="Add child node"
         >
-          <Plus className={`w-3 h-3 transition-colors ${isDarkMode ? "text-slate-300" : "text-slate-600"}`} />
+          <Plus
+            className={`w-3 h-3 transition-colors ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}
+          />
         </button>
         <button
           type="button"
@@ -165,22 +285,23 @@ export function NodeCard({
           }}
           onMouseDown={(e) => e.stopPropagation()}
           className={`p-1 rounded-full shadow-md hover:shadow-lg hover:scale-110 transition-all border ${
-            isDarkMode 
-              ? "bg-slate-700 border-slate-600" 
+            isDarkMode
+              ? "bg-slate-700 border-slate-600"
               : "bg-white border-slate-200"
           }`}
           title="Generate nodes from text"
         >
-          <Sparkles className={`w-3 h-3 ${isDarkMode ? "text-slate-300" : "text-slate-600"}`} />
+          <Sparkles
+            className={`w-3 h-3 ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}
+          />
         </button>
-
       </div>
 
       {showTextInput && (
         <div
           className={`absolute top-full left-0 mt-2 z-50 rounded-lg shadow-xl border p-3 min-w-[250px] ${
-            isDarkMode 
-              ? "bg-slate-800 border-slate-700" 
+            isDarkMode
+              ? "bg-slate-800 border-slate-700"
               : "bg-white border-slate-200"
           }`}
           onMouseDown={(e) => e.stopPropagation()}
@@ -193,8 +314,8 @@ export function NodeCard({
             onKeyDown={handleKeyDown}
             placeholder="Enter text..."
             className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 ${
-              isDarkMode 
-                ? "border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400" 
+              isDarkMode
+                ? "border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400"
                 : "border-slate-300 bg-white text-slate-900 focus:ring-blue-500"
             }`}
             autoFocus
@@ -209,7 +330,7 @@ export function NodeCard({
               {isExpanding && (
                 <div className="animate-spin rounded-full h-3 w-3 border border-white border-t-transparent"></div>
               )}
-              {isExpanding ? 'Expanding...' : 'Submit'}
+              {isExpanding ? "Expanding..." : "Submit"}
             </button>
             <button
               type="button"
@@ -218,8 +339,8 @@ export function NodeCard({
                 setInputText("")
               }}
               className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                isDarkMode 
-                  ? "bg-slate-600 hover:bg-slate-500 text-slate-200" 
+                isDarkMode
+                  ? "bg-slate-600 hover:bg-slate-500 text-slate-200"
                   : "bg-slate-200 hover:bg-slate-300 text-slate-700"
               }`}
             >

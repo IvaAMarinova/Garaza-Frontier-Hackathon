@@ -37,6 +37,8 @@ export interface ConceptGraphResponse {
     summary: string
     first_seen_index: number
     last_seen_index: number
+    weight: number
+    expansions: string[]
   }>
   edges: Array<{
     id: string
@@ -47,6 +49,7 @@ export interface ConceptGraphResponse {
     evidence_msg_id?: string
     evidence_snippet?: string
     last_referenced_index?: number
+    weight: number
   }>
   meta: {
     last_processed_index: number
@@ -90,10 +93,45 @@ export interface SimpleGoalResponse {
 }
 
 export interface ConceptExpandRequest {
-  expansion: string
+  expansion?: string
   weight?: number
   strength?: number
   auto_refine?: boolean
+}
+
+export interface ConceptExpandResponse {
+  concept: {
+    id: string
+    label: string
+    type: string
+    aliases: string[]
+    summary: string
+    first_seen_index: number
+    last_seen_index: number
+    weight: number
+    expansions: string[]
+  }
+  new_children: Array<{
+    id: string
+    label: string
+    type: string
+    aliases: string[]
+    summary: string
+    first_seen_index: number
+    last_seen_index: number
+    weight: number
+    expansions: string[]
+  }>
+  new_edges: Array<{
+    id: string
+    from_concept_id: string
+    to_concept_id: string
+    relation: string
+    introduced_index: number
+    evidence_msg_id?: string
+    evidence_snippet?: string
+    last_referenced_index?: number
+  }>
 }
 
 export interface CreateGoalRequest {
@@ -224,7 +262,7 @@ export async function createGoal(sessionId: string, request: CreateGoalRequest =
   return response.json()
 }
 
-export async function expandConcept(sessionId: string, conceptId: string, request: ConceptExpandRequest): Promise<unknown> {
+export async function expandConcept(sessionId: string, conceptId: string, request: ConceptExpandRequest): Promise<ConceptExpandResponse> {
   const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/concept-graph/${conceptId}/expand`, {
     method: 'POST',
     headers: {
@@ -240,21 +278,7 @@ export async function expandConcept(sessionId: string, conceptId: string, reques
   return response.json()
 }
 
-export async function recordGoalInteractions(sessionId: string, request: GoalInteractionsRequest): Promise<unknown> {
-  const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/goal/interactions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(request),
-  })
 
-  if (!response.ok) {
-    throw new Error(`Failed to record goal interactions: ${response.statusText}`)
-  }
-
-  return response.json()
-}
 
 export async function initializeTicTacToeSession(prompt?: string): Promise<{ sessionId: string; conceptGraph: ConceptGraphResponse }> {
   // Create a new session
@@ -284,56 +308,117 @@ export async function initializeTicTacToeSession(prompt?: string): Promise<{ ses
   return { sessionId: session_id, conceptGraph }
 }
 
+export interface ConceptGraphNode extends NodeContent {
+  conceptId: string
+  level: number
+  parentConceptId?: string
+  weight?: number
+  completed?: boolean
+}
+
 export function convertConceptGraphToNodes(conceptGraph: ConceptGraphResponse): { 
-  centerNode: NodeContent & { conceptId: string }; 
-  childNodes: Array<NodeContent & { conceptId: string }> 
+  centerNode: ConceptGraphNode; 
+  childNodes: Array<ConceptGraphNode> 
 } {
   const { concepts, edges } = conceptGraph
   
   if (concepts.length === 0) {
     return {
-      centerNode: { text: "Tic Tac Toe Game", header: "Game Concept", conceptId: "fallback" },
+      centerNode: { text: "Your future project", header: "Project Overview", conceptId: "fallback", level: 0 },
       childNodes: []
     }
   }
 
-  // Find the most central concept (one with most connections)
-  const connectionCounts = new Map<string, number>()
+  // Find the intent node (central node with id starting with "intent")
+  const intentConcept = concepts.find(concept => concept.id.startsWith("intent"))
   
-  edges.forEach(edge => {
-    connectionCounts.set(edge.from_concept_id, (connectionCounts.get(edge.from_concept_id) || 0) + 1)
-    connectionCounts.set(edge.to_concept_id, (connectionCounts.get(edge.to_concept_id) || 0) + 1)
-  })
+  if (!intentConcept) {
+    // Fallback to most connected concept if no intent node found
+    const connectionCounts = new Map<string, number>()
+    
+    edges.forEach(edge => {
+      connectionCounts.set(edge.from_concept_id, (connectionCounts.get(edge.from_concept_id) || 0) + 1)
+      connectionCounts.set(edge.to_concept_id, (connectionCounts.get(edge.to_concept_id) || 0) + 1)
+    })
 
-  // Sort concepts by connection count and relevance
-  const sortedConcepts = concepts.sort((a, b) => {
-    const aConnections = connectionCounts.get(a.id) || 0
-    const bConnections = connectionCounts.get(b.id) || 0
-    return bConnections - aConnections
-  })
+    const sortedConcepts = concepts.sort((a, b) => {
+      const aConnections = connectionCounts.get(a.id) || 0
+      const bConnections = connectionCounts.get(b.id) || 0
+      return bConnections - aConnections
+    })
 
-  const centerConcept = sortedConcepts[0]
-  const centerNode: NodeContent & { conceptId: string } = {
-    text: centerConcept.summary,
-    header: centerConcept.label,
-    conceptId: centerConcept.id
+    const centerConcept = sortedConcepts[0]
+    const centerNode: ConceptGraphNode = {
+      text: centerConcept.summary,
+      header: centerConcept.label,
+      conceptId: centerConcept.id,
+      level: 0,
+      weight: centerConcept.weight,
+      completed: centerConcept.weight >= 10
+    }
+
+    const childNodes: Array<ConceptGraphNode> = concepts
+      .filter(concept => concept.id !== centerConcept.id)
+      .slice(0, 8)
+      .map(concept => ({
+        text: concept.summary,
+        header: concept.label,
+        conceptId: concept.id,
+        level: 1,
+        weight: concept.weight,
+        completed: concept.weight >= 10
+      }))
+
+    return { centerNode, childNodes }
   }
 
-  // Simple approach: show all other concepts as children of the center
-  // This works better for complex interconnected graphs
-  const allChildIds = concepts
-    .filter(concept => concept.id !== centerConcept.id)
-    .map(concept => concept.id)
+  const centerNode: ConceptGraphNode = {
+    text: intentConcept.summary,
+    header: intentConcept.label,
+    conceptId: intentConcept.id,
+    level: 0,
+    weight: intentConcept.weight,
+    completed: intentConcept.weight >= 10
+  }
 
-  const childNodes: Array<NodeContent & { conceptId: string }> = allChildIds
-    .map(id => concepts.find(c => c.id === id))
-    .filter(Boolean)
-    .slice(0, 8) // Show up to 8 connected nodes
-    .map(concept => ({
-      text: concept!.summary,
-      header: concept!.label,
-      conceptId: concept!.id
-    }))
+  const parentChildMap = new Map<string, string>()
+  
+  edges.forEach(edge => {
+    parentChildMap.set(edge.to_concept_id, edge.from_concept_id)
+  })
+
+  const resultNodes: Array<ConceptGraphNode> = []
+  
+  function addNodeAndChildren(conceptId: string, level: number, parentConceptId?: string): void {
+    const concept = concepts.find(c => c.id === conceptId)
+    if (!concept) return
+    
+    if (conceptId !== intentConcept!.id) {
+      resultNodes.push({
+        text: concept.summary,
+        header: concept.label,
+        conceptId: concept.id,
+        level,
+        parentConceptId,
+        weight: concept.weight,
+        completed: concept.weight >= 10
+      })
+    }
+    
+    const children: string[] = []
+    parentChildMap.forEach((parentId, childId) => {
+      if (parentId === conceptId) {
+        children.push(childId)
+      }
+    })
+    
+    children.forEach(childId => {
+      addNodeAndChildren(childId, level + 1, conceptId)
+    })
+  }
+  
+  addNodeAndChildren(intentConcept!.id, 0)
+  const childNodes = resultNodes.slice(0, 8)
 
   return { centerNode, childNodes }
 }

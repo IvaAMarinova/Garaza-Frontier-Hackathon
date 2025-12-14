@@ -5,8 +5,9 @@ import type { Node, NodeContent } from "../lib/types"
 import { NODE_COLORS, CENTER_COLOR } from "../lib/colors"
 import { calculateNewNodePosition, adjustNodesForNewNode, validateAndFixOverlaps, estimateNodeDimensions } from "../lib/positioning"
 import { INITIAL_CENTER_NODE } from "../lib/constants"
-import { initializeTicTacToeSession, convertConceptGraphToNodes, getGoal } from "../lib/api"
-import type { Goal } from "../lib/types"
+import { initializeTicTacToeSession, convertConceptGraphToNodes, getGoal, type ConceptGraphNode, type ConceptExpandResponse, type GoalResponse } from "../lib/api"
+
+
 export function useMindMap(initialText?: string, isDarkMode: boolean = false, onStartNewJourney?: () => void) {
 
   // Node state - initialize center node at viewport center
@@ -14,10 +15,13 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
   const [isInitialized, setIsInitialized] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [goal, setGoal] = useState<Goal | null>(null)
+  const [goal, setGoal] = useState<GoalResponse | null>(null)
   const [showCongratulations, setShowCongratulations] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const initializationInProgress = useRef(false)
+  
+  const [nodeWeights, setNodeWeights] = useState<Map<string, number>>(new Map())
+  const [totalWeight, setTotalWeight] = useState(0)
   
   // Initialize with tic tac toe concept graph
   useEffect(() => {
@@ -51,30 +55,88 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
             content: centerNode,
             color: CENTER_COLOR.light,
             conceptId: centerNode.conceptId,
+            weight: centerNode.weight,
+            completed: centerNode.completed,
           }
           
-          // Create child nodes using proper positioning logic
+          // Create child nodes using simple tree structure
           const childNodeObjs: Node[] = []
-          const allNodes = [centerNodeObj] // Start with just center node
+          const nodeMap = new Map<string, Node>()
+          nodeMap.set(centerNodeObj.conceptId!, centerNodeObj)
           
-          childNodes.forEach((content, index) => {
-            const siblings = childNodeObjs // Previously created siblings
-            const position = calculateNewNodePosition(centerNodeObj, siblings, allNodes, content)
+          const sortedChildNodes = [...childNodes].sort((a, b) => a.level - b.level)
+          
+          sortedChildNodes.forEach((content) => {
+            let parentNode = centerNodeObj
+            if (content.parentConceptId) {
+              const foundParent = nodeMap.get(content.parentConceptId)
+              if (foundParent) {
+                parentNode = foundParent
+              }
+            }
             
-            const childNode = {
+            const siblings = childNodeObjs.filter(n => n.parentId === parentNode.id)
+            const siblingCount = siblings.length
+            
+            let position: { x: number; y: number }
+            
+            if (parentNode === centerNodeObj) {
+              // Level 1 nodes - radial positioning around center
+              const angleStep = (2 * Math.PI) / Math.max(6, siblingCount + 1)
+              const angle = siblingCount * angleStep
+              const distance = 220
+              
+              position = {
+                x: centerNodeObj.x + Math.cos(angle) * distance,
+                y: centerNodeObj.y + Math.sin(angle) * distance
+              }
+            } else {
+              // Level 2+ nodes - position relative to parent
+              const parentAngle = Math.atan2(parentNode.y - centerNodeObj.y, parentNode.x - centerNodeObj.x)
+              const childAngleSpread = Math.PI / 3
+              const childAngle = parentAngle + (siblingCount - (siblingCount + 1) / 2) * (childAngleSpread / Math.max(1, siblingCount))
+              const distance = 150
+              
+              position = {
+                x: parentNode.x + Math.cos(childAngle) * distance,
+                y: parentNode.y + Math.sin(childAngle) * distance
+              }
+            }
+            
+            // Assign colors
+            const nodeColor = parentNode === centerNodeObj 
+              ? NODE_COLORS[siblingCount % NODE_COLORS.length].light
+              : parentNode.color
+            
+            const childNode: Node = {
               id: crypto.randomUUID(),
               content,
               x: position.x,
               y: position.y,
-              color: NODE_COLORS[index % NODE_COLORS.length].light,
-              parentId: centerNodeObj.id,
+              color: nodeColor,
+              parentId: parentNode.id,
               conceptId: content.conceptId,
+              weight: content.weight,
+              completed: content.completed,
             }
             
             childNodeObjs.push(childNode)
-            allNodes.push(childNode) // Add to all nodes for next iteration
+            nodeMap.set(content.conceptId, childNode)
           })
           
+          // Initialize weights from backend data
+          const initialWeights = new Map<string, number>()
+          initialWeights.set(centerNode.conceptId, centerNode.weight || 0)
+          childNodes.forEach(child => {
+            initialWeights.set(child.conceptId, child.weight || 0)
+          })
+          setNodeWeights(initialWeights)
+          
+          // Calculate initial total weight
+          const initialTotal = Array.from(initialWeights.values()).reduce((sum, weight) => sum + weight, 0)
+          setTotalWeight(initialTotal)
+          console.log(`Initialized with total weight: ${initialTotal}`)
+
           // Start with just the center node
           setNodes([centerNodeObj])
           
@@ -281,6 +343,101 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
       prev.map((n) => (n.id === childId ? { ...n, parentId: null } : n))
     )
   }, [])
+
+  const handleConceptExpansion = useCallback(async (conceptId: string, updatedConcept: any, newChildren: any[], newEdges: any[]) => {
+
+    setNodes((prevNodes) => {
+      // Find the node with the matching conceptId
+      const nodeToUpdate = prevNodes.find(n => n.conceptId === conceptId)
+      if (!nodeToUpdate) return prevNodes
+      
+      // Update the existing node with new content
+      const updatedNodes = prevNodes.map(n => 
+        n.conceptId === conceptId 
+          ? { 
+              ...n, 
+              content: { 
+                ...n.content, 
+                text: updatedConcept.summary,
+                header: updatedConcept.label 
+              } 
+            }
+          : n
+      )
+      
+      // Add new child nodes if any
+      const newNodeObjs: Node[] = []
+      newChildren.forEach((child, index) => {
+        const siblings = updatedNodes.filter(n => n.parentId === nodeToUpdate.id)
+        const siblingCount = siblings.length + index
+        
+        // Calculate position for new child node
+        const parentAngle = Math.atan2(nodeToUpdate.y - (containerRef.current?.getBoundingClientRect().height || 0) / 2, 
+                                      nodeToUpdate.x - (containerRef.current?.getBoundingClientRect().width || 0) / 2)
+        const childAngleSpread = Math.PI / 3
+        const childAngle = parentAngle + (siblingCount - (siblingCount + 1) / 2) * (childAngleSpread / Math.max(1, siblingCount + 1))
+        const distance = 150
+        
+        const position = {
+          x: nodeToUpdate.x + Math.cos(childAngle) * distance,
+          y: nodeToUpdate.y + Math.sin(childAngle) * distance
+        }
+        
+        const newNode: Node = {
+          id: crypto.randomUUID(),
+          content: {
+            text: child.summary,
+            header: child.label
+          },
+          x: position.x,
+          y: position.y,
+          color: nodeToUpdate.color,
+          parentId: nodeToUpdate.id,
+          conceptId: child.id,
+        }
+        
+        newNodeObjs.push(newNode)
+      })
+      
+      const finalNodes = [...updatedNodes, ...newNodeObjs]
+      
+      // Add animation for new nodes
+      newNodeObjs.forEach(newNode => {
+        setNewlyCreatedNodes(prev => new Set([...prev, newNode.id]))
+        setTimeout(() => {
+          setNewlyCreatedNodes(prev => {
+            const updated = new Set(prev)
+            updated.delete(newNode.id)
+            return updated
+          })
+        }, 500)
+      })
+      
+      // Add update animation for the expanded node
+      setUpdatedNodes(prev => new Set([...prev, nodeToUpdate.id]))
+      setTimeout(() => {
+        setUpdatedNodes(prev => {
+          const updated = new Set(prev)
+          updated.delete(nodeToUpdate.id)
+          return updated
+        })
+      }, 400)
+      
+      return validateAndFixOverlaps(finalNodes)
+    })
+    
+    // Fetch updated goal after expansion with a slight delay to allow backend processing
+    if (sessionId) {
+      setTimeout(async () => {
+        try {
+          const goalResponse = await getGoal(sessionId)
+          setGoal(goalResponse)
+        } catch (error) {
+          console.warn('Failed to fetch updated goal:', error)
+        }
+      }, 500)
+    }
+  }, [sessionId])
 
   // Drag and drop
   const handleMouseDown = useCallback(
@@ -538,6 +695,39 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
       .filter(Boolean)
   }, [nodes, isDarkMode, draggingId])
 
+  // Weight tracking functions
+  const incrementNodeWeight = useCallback((conceptId: string, increment: number = 1) => {
+    setNodeWeights(prev => {
+      const newWeights = new Map(prev)
+      const currentWeight = newWeights.get(conceptId) || 0
+      const newWeight = currentWeight + increment
+      newWeights.set(conceptId, newWeight)
+      
+      // Update total weight
+      const newTotal = Array.from(newWeights.values()).reduce((sum, weight) => sum + weight, 0)
+      setTotalWeight(newTotal)
+      
+      // Log weight values
+      console.log(`Node ${conceptId} weight: ${newWeight}, total weight: ${newTotal}`)
+      
+      // Check for completion (when total weight reaches more than 7)
+      if (newTotal > 7) {
+        console.log(`Completion achieved! Total weight reached ${newTotal}`)
+        setShowCongratulations(true)
+      }
+      
+      return newWeights
+    })
+  }, [])
+
+  const getNodeWeight = useCallback((conceptId: string): number => {
+    return nodeWeights.get(conceptId) || 0
+  }, [nodeWeights])
+
+  const checkCompletions = useCallback((): boolean => {
+    return totalWeight > 7
+  }, [totalWeight])
+
   return {
     // State
     nodes,
@@ -561,11 +751,18 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
     deleteNode,
     editNode,
     removeConnection,
+    handleConceptExpansion,
     zoomIn,
     zoomOut,
     resetZoom,
 
     handleMouseDown,
     handleBackgroundMouseDown,
+    
+    // Weight tracking
+    incrementNodeWeight,
+    getNodeWeight,
+    checkCompletions,
+    totalWeight,
   }
 }

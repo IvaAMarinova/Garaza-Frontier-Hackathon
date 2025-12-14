@@ -37,6 +37,7 @@ export default function MindMap({
     deleteNode,
     editNode,
     removeConnection,
+    handleConceptExpansion,
     zoomIn,
     zoomOut,
     resetZoom,
@@ -44,6 +45,7 @@ export default function MindMap({
     handleCloseCongratulations,
     handleMouseDown,
     handleBackgroundMouseDown,
+    incrementNodeWeight,
   } = useMindMap(initialText, isDarkMode, onStartNewJourney)
 
   return (
@@ -68,12 +70,15 @@ export default function MindMap({
             {/* Custom Cool Spinner */}
             <div className="relative w-24 h-24 mb-6">
               {/* Outer rotating ring */}
-              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-indigo-500 border-r-indigo-400 animate-spin"></div>
+              <div 
+                className="absolute inset-0 rounded-full border-4 border-transparent border-t-indigo-500 border-r-indigo-400"
+                style={{ animation: "spin 3s linear infinite" }}
+              ></div>
 
               {/* Middle rotating ring - opposite direction */}
               <div
                 className="absolute inset-2 rounded-full border-4 border-transparent border-b-purple-500 border-l-purple-400"
-                style={{ animation: "spin 1.5s linear infinite reverse" }}
+                style={{ animation: "spin 4s linear infinite reverse" }}
               ></div>
 
               {/* Inner pulsing dot */}
@@ -304,6 +309,8 @@ export default function MindMap({
                   (node as unknown as { conceptId?: string }).conceptId
                 }
                 isDarkMode={isDarkMode}
+                onExpandConcept={handleConceptExpansion}
+                onIncrementWeight={incrementNodeWeight}
               />
             </div>
           )
