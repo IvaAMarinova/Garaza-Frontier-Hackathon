@@ -214,9 +214,7 @@ export function NodeCard({
         aria-label="Node content"
       >
         {node.content.header && (
-          <div
-            className={`font-semibold text-sm select-none ${isDarkMode ? "opacity-80" : "opacity-70"}`}
-          >
+          <div className="font-semibold text-sm select-none opacity-80">
             {node.content.header}
           </div>
         )}
@@ -247,11 +245,7 @@ export function NodeCard({
               }}
               onMouseDown={(e) => e.stopPropagation()}
               disabled={isConceptExpanding}
-              className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full transition-all duration-300 transform hover:scale-105 ${
-                isDarkMode
-                  ? "bg-transparent hover:bg-slate-700/20 text-slate-400 hover:text-slate-200"
-                  : "bg-transparent hover:bg-gray-100/50 text-slate-500 hover:text-slate-700"
-              } ${isConceptExpanding ? "opacity-60 cursor-not-allowed scale-95 animate-pulse" : "cursor-pointer"}`}
+              className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full transition-all duration-300 transform hover:scale-105 bg-transparent hover:bg-slate-700/20 text-slate-400 hover:text-slate-200 ${isConceptExpanding ? "opacity-60 cursor-not-allowed scale-95 animate-pulse" : "cursor-pointer"}`}
               title="Expand this concept for more details"
             >
               {isConceptExpanding ? (
@@ -283,16 +277,10 @@ export function NodeCard({
             onAddChild(node.id, { text: "New Node" })
           }}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`p-1 rounded-full shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 border ${
-            isDarkMode
-              ? "bg-slate-700 border-slate-600"
-              : "bg-white border-slate-200"
-          }`}
+          className="p-1 rounded-full shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 border bg-slate-700 border-slate-600"
           title="Add child node"
         >
-          <Plus
-            className={`w-3 h-3 transition-colors ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}
-          />
+          <Plus className="w-3 h-3 transition-colors text-slate-300" />
         </button>
         <button
           type="button"
@@ -301,26 +289,16 @@ export function NodeCard({
             setShowTextInput(true)
           }}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`p-1 rounded-full shadow-md hover:shadow-lg hover:scale-110 transition-all border ${
-            isDarkMode
-              ? "bg-slate-700 border-slate-600"
-              : "bg-white border-slate-200"
-          }`}
+          className="p-1 rounded-full shadow-md hover:shadow-lg hover:scale-110 transition-all border bg-slate-700 border-slate-600"
           title="Generate nodes from text"
         >
-          <Sparkles
-            className={`w-3 h-3 ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}
-          />
+          <Sparkles className="w-3 h-3 text-slate-300" />
         </button>
       </div>
 
       {showTextInput && (
         <div
-          className={`absolute top-full left-0 mt-2 z-50 rounded-lg shadow-xl border p-3 min-w-[250px] ${
-            isDarkMode
-              ? "bg-slate-800 border-slate-700"
-              : "bg-white border-slate-200"
-          }`}
+          className="absolute top-full left-0 mt-2 z-50 rounded-lg shadow-xl border p-3 min-w-[250px] bg-slate-800 border-slate-700"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
@@ -330,11 +308,7 @@ export function NodeCard({
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Enter text..."
-            className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 ${
-              isDarkMode
-                ? "border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400"
-                : "border-slate-300 bg-white text-slate-900 focus:ring-blue-500"
-            }`}
+            className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400"
             autoFocus
           />
           <div className="flex gap-2 mt-2">
@@ -355,11 +329,7 @@ export function NodeCard({
                 setShowTextInput(false)
                 setInputText("")
               }}
-              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                isDarkMode
-                  ? "bg-slate-600 hover:bg-slate-500 text-slate-200"
-                  : "bg-slate-200 hover:bg-slate-300 text-slate-700"
-              }`}
+              className="px-3 py-1.5 text-xs rounded-md transition-colors bg-slate-600 hover:bg-slate-500 text-slate-200"
             >
               Cancel
             </button>

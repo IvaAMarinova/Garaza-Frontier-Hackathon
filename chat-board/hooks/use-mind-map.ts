@@ -53,8 +53,7 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
             x: rect.width / 2,
             y: rect.height / 2,
             content: centerNode,
-            color: CENTER_COLOR.light,
-            conceptId: centerNode.conceptId,
+              color: CENTER_COLOR.light.replace(/border-\w+-\d+/g, 'border-slate-600').replace(/bg-\w+-\d+\/\d+/g, 'bg-slate-800/90').replace(/text-\w+-\d+/g, 'text-slate-100'),            conceptId: centerNode.conceptId,
             weight: centerNode.weight,
             completed: centerNode.completed,
           }
@@ -103,9 +102,9 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
               }
             }
             
-            // Assign colors
+            // Assign colors (use dark mode versions)
             const nodeColor = parentNode === centerNodeObj 
-              ? NODE_COLORS[siblingCount % NODE_COLORS.length].light
+              ? NODE_COLORS[siblingCount % NODE_COLORS.length].light.replace(/border-\w+-300/g, (match) => match.replace('300', '700')).replace(/bg-\w+-50\/80/g, (match) => match.replace('50/80', '950/50')).replace(/text-\w+-900/g, (match) => match.replace('900', '100'))
               : parentNode.color
             
             const childNode: Node = {
@@ -169,7 +168,7 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
               x: rect.width / 2,
               y: rect.height / 2,
               content: { text: initialText || "Tic Tac Toe Game", header: "Game Concept" },
-              color: CENTER_COLOR.light,
+              color: CENTER_COLOR.light.replace(/border-\w+-\d+/g, 'border-slate-600').replace(/bg-\w+-\d+\/\d+/g, 'bg-slate-800/90').replace(/text-\w+-\d+/g, 'text-slate-100'),
               conceptId: "fallback",
             },
           ])
@@ -246,7 +245,7 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
         if (colorIndex >= NODE_COLORS.length) {
           colorIndex = Math.floor(Math.random() * NODE_COLORS.length)
         }
-        nodeColor = NODE_COLORS[colorIndex].light
+        nodeColor = NODE_COLORS[colorIndex].light.replace(/border-\w+-300/g, (match) => match.replace('300', '700')).replace(/bg-\w+-50\/80/g, (match) => match.replace('50/80', '950/50')).replace(/text-\w+-900/g, (match) => match.replace('900', '100'))
       } else {
         // This is a deeper level node - inherit parent's color
         nodeColor = parent.color
@@ -693,9 +692,7 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
         const colorData = NODE_COLORS.find((c) =>
           node.color.includes(c.light.split(" ")[0].replace("border-", ""))
         )
-        const strokeColor = isDarkMode
-          ? colorData?.darkConnection || CENTER_COLOR.darkConnection
-          : colorData?.connection || CENTER_COLOR.connection
+        const strokeColor = colorData?.darkConnection || CENTER_COLOR.darkConnection
 
         return {
           id: node.id,

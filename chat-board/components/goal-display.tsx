@@ -45,18 +45,14 @@ export default function GoalDisplay({
       className="absolute top-4 right-4 z-20 w-96 max-w-[calc(100vw-2rem)] pointer-events-auto"
     >
       <div
-        className={`group relative rounded-xl border-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg select-none pointer-events-auto ${
-          isDarkMode
-            ? "border-indigo-700 bg-indigo-950/50 text-indigo-100"
-            : "border-indigo-300 bg-indigo-50/80 text-indigo-900"
-        } ${isExpanded ? "max-h-[70vh]" : "h-20"} flex flex-col`}
+        className={`group relative rounded-xl border-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg select-none pointer-events-auto border-indigo-700 bg-indigo-950/50 text-indigo-100 ${isExpanded ? "max-h-[70vh]" : "h-20"} flex flex-col`}
         onMouseDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
       >
         {/* Header - Fixed */}
         <div className="flex items-start justify-between px-4 py-3 flex-shrink-0">
           <div
-            className={`font-semibold text-sm select-none flex items-center gap-2 ${isDarkMode ? "opacity-80" : "opacity-70"}`}
+            className="font-semibold text-sm select-none flex items-center gap-2 opacity-80"
           >
             <svg
               width="14"
@@ -72,11 +68,7 @@ export default function GoalDisplay({
           </div>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`p-1 rounded-full shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 border opacity-0 group-hover:opacity-100 ${
-              isDarkMode
-                ? "bg-slate-700 border-slate-600"
-                : "bg-white border-slate-200"
-            }`}
+            className="p-1 rounded-full shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 border opacity-0 group-hover:opacity-100 bg-slate-700 border-slate-600"
             aria-label={isExpanded ? "Collapse goal" : "Expand goal"}
           >
             <svg
@@ -86,7 +78,7 @@ export default function GoalDisplay({
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""} ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}
+              className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""} text-slate-300`}
             >
               <path d="M6 9l6 6 6-6" />
             </svg>
@@ -96,18 +88,14 @@ export default function GoalDisplay({
         {/* Content - Scrollable */}
         <div
           ref={scrollContainerRef}
-          className={`transition-all duration-300 scrollbar-thin ${
-            isDarkMode 
-              ? "scrollbar-track-indigo-950/20 scrollbar-thumb-indigo-600/50 hover:scrollbar-thumb-indigo-500/70" 
-              : "scrollbar-track-indigo-100/50 scrollbar-thumb-indigo-400/50 hover:scrollbar-thumb-indigo-500/70"
-          } ${
+          className={`transition-all duration-300 scrollbar-thin scrollbar-track-indigo-950/20 scrollbar-thumb-indigo-600/50 hover:scrollbar-thumb-indigo-500/70 ${
             isExpanded 
               ? "flex-1 opacity-100 overflow-y-auto px-4 pb-3" 
               : "h-0 opacity-75 overflow-hidden"
           }`}
           style={{
             scrollbarWidth: 'thin',
-            scrollbarColor: isDarkMode ? '#4f46e5 transparent' : '#6366f1 transparent'
+            scrollbarColor: '#4f46e5 transparent'
           }}
         >
           <div className="whitespace-pre-wrap leading-relaxed select-none text-sm">
@@ -133,15 +121,11 @@ export default function GoalDisplay({
         {/* Footer - Fixed */}
         {isExpanded && (
           <div
-            className={`px-4 pb-3 pt-3 border-t flex-shrink-0 ${isDarkMode ? "border-indigo-800/50" : "border-indigo-200/50"}`}
+            className="px-4 pb-3 pt-3 border-t flex-shrink-0 border-indigo-800/50"
           >
             <button
               onClick={onFinish}
-              className={`w-full px-3 py-2 text-sm font-medium rounded-lg shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 border ${
-                isDarkMode
-                  ? "bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600"
-                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-              }`}
+              className="w-full px-3 py-2 text-sm font-medium rounded-lg shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 border bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600"
             >
               Finish Learning
             </button>
