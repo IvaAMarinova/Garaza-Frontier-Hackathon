@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { useMindMap } from "../hooks/use-mind-map"
 import { NodeCard } from "./node-card"
 import GoalDisplay from "./goal-display"
@@ -10,6 +11,7 @@ interface MindMapProps {
   isDarkMode?: boolean
   containerHeight?: string
   onStartNewJourney?: () => void
+  onCongratulationsChange?: (show: boolean) => void
 }
 
 export default function MindMap({
@@ -17,6 +19,7 @@ export default function MindMap({
   isDarkMode = true,
   onStartNewJourney,
   containerHeight,
+  onCongratulationsChange,
 }: MindMapProps) {
   const {
     nodes,
@@ -47,6 +50,13 @@ export default function MindMap({
     handleBackgroundMouseDown,
     incrementNodeWeight,
   } = useMindMap(initialText, isDarkMode, onStartNewJourney)
+
+  // Notify parent when congratulations state changes
+  useEffect(() => {
+    if (onCongratulationsChange) {
+      onCongratulationsChange(showCongratulations)
+    }
+  }, [showCongratulations, onCongratulationsChange])
 
   return (
     <div

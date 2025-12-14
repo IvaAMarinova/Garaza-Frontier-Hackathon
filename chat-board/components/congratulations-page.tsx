@@ -119,11 +119,8 @@ export default function CongratulationsPage({
 
         <div className="text-center mb-6">
           <h1 className="text-lg font-semibold mb-2 text-indigo-100">
-            Learning Complete!
+            Showcase Complete!
           </h1>
-          <p className="text-xs text-indigo-200">
-            Your structured learning goal
-          </p>
         </div>
 
         {/* Full Goal Content - Gold/Yellow Theme with Scale Pulse Animation */}
@@ -280,7 +277,7 @@ export default function CongratulationsPage({
         <div className="text-center">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium rounded-lg shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 border-2 border-gray-400 text-gray-500 bg-transparent hover:bg-gray-400 hover:text-white pointer-events-auto"
+            className="px-4 py-2 text-xs font-medium rounded-lg shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 border-2 border-blue-600 text-blue-400 bg-transparent hover:bg-blue-600 hover:text-white pointer-events-auto"
           >
             Try it out again!
           </button>
