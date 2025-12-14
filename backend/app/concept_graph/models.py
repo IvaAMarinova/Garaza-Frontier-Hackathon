@@ -227,9 +227,30 @@ class ConceptGraph:
             node.weight = max(node.weight, float(weight))
         if expansion:
             clean = str(expansion).strip()
-            if clean and clean not in node.expansions:
+            if clean and not self._looks_like_placeholder(clean) and clean not in node.expansions:
                 node.expansions.append(clean)
         return True
+
+    @staticmethod
+    def _looks_like_placeholder(text: str) -> bool:
+        lowered = text.strip().lower()
+        if not lowered:
+            return True
+        placeholders = {
+            "explain more about this concept",
+            "explain more about this topic",
+            "explain more about this",
+            "expand this concept",
+            "tell me more",
+            "provide more detail",
+        }
+        if lowered in placeholders:
+            return True
+        if lowered.startswith("explain more about"):
+            return True
+        if lowered.startswith("expand this"):
+            return True
+        return False
 
     def _upsert_edge(self, payload: Dict[str, object], id_map: Dict[str, str]) -> Optional[ConceptEdge]:
         raw_from = str(payload.get("from_concept_id", ""))

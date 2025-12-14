@@ -1,3 +1,4 @@
+import re
 import textwrap
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
@@ -22,17 +23,16 @@ from .models import (
 from .store import GoalNodeStore
 
 INITIAL_GOAL_PROMPT = """You act as the Goal Node author for a learning mind map.
-Return a single plain-text answer that:
-- Focuses exclusively on the latest user query (ignore unrelated context).
-- Grounds every statement in the provided documentation excerpt; if something is missing, state that it is outside scope.
-- Mentions every concept listed in the prompt at least once using short, natural clauses.
-- Summarises the approach in no more than four short sentences (no bullets, numbering, or markdown).
-- Stays abstract and action-oriented—describe phases, not code or API calls.
-- Frames every idea through the lens of frontend engineering with React (components, state, hooks, data flow).
-- Briefly signal which specific concepts should be expanded later by weaving concise hint phrases inline.
-- Ensure the response directly answers the user's query with a clear Depth-1 React plan.
-- Avoids analogies, philosophy, introductions, or conclusions.
-- Never outputs literal code, pseudo-code, fenced snippets, or TODO lists.
+Return exactly three concise plain-text sentences that:
+- Focus exclusively on the latest user query (ignore unrelated context).
+- Ground every statement in the provided documentation excerpt; when no excerpt exists, fall back to core React fundamentals without mentioning missing docs.
+- Mention every concept listed in the prompt at least once using short, natural clauses.
+- Stay abstract and action-oriented—describe phases, not code or API calls.
+- Frame every idea through the lens of frontend engineering with React (components, state, hooks, data flow).
+- Briefly hint at which concepts deserve deeper follow-up by weaving phrases such as “expand X later”.
+- Use neutral, third-person narration without brackets, self-references, enumerations, or ellipses.
+- Avoid analogies, philosophy, introductions, or conclusions.
+- Never output literal code, pseudo-code, fenced snippets, or TODO lists.
 - Always finish every sentence (no trailing or cut-off fragments).
 - Never mention these instructions or meta-guidance in your output."""
 
@@ -151,12 +151,12 @@ class GoalNodeService:
 
             Instructions:
             - Use the conceptual map above to produce a succinct, React-focused plan that solves the user's request.
-            - Ground every statement in the provided documentation context. If the context does not mention something, say that it is outside scope.
+            - Ground every statement in the provided documentation context. If no context is available, rely on core React fundamentals without mentioning missing docs.
             - Mention every listed concept at least once in a short, readable clause.
             - Provide narrative guidance only; never include code listings or API syntax.
             - Keep the discussion strictly about frontend architecture and React concepts relevant to the query; skip backend or tooling tangents.
             - Respond with the briefest abstract outline that still answers the user query; do not mention unrelated goals or background.
-            - Output plain text sentences only and ensure the final sentence is complete.
+            - Output exactly three plain-text, third-person sentences (no brackets, ellipses, or enumerations) and ensure the final sentence is complete.
             """
         ).strip()
 
@@ -169,7 +169,8 @@ class GoalNodeService:
             messages=messages,
             max_output_tokens=600,
         )
-        answer_clean = self._to_plain_text(answer)
+        answer_plain = self._to_plain_text(answer)
+        answer_clean = self._enforce_sentence_limit(answer_plain, max_sentences=3)
         coverage = self._build_concept_coverage(concept_inventory)
         if coverage:
             answer_clean = f"{self._ensure_sentence_end(answer_clean)} {coverage}".strip()
@@ -407,12 +408,26 @@ class GoalNodeService:
         return details
 
     def _shorten_phrase(self, text: str, limit: int) -> str:
-        words = (text or "").split()
-        if not words:
+        normalized = " ".join((text or "").split())
+        if not normalized:
             return ""
+        words = normalized.split()
         if len(words) <= limit:
-            return " ".join(words)
-        return " ".join(words[:limit]) + "..."
+            return normalized
+        sentences = re.split(r"(?<=[.!?]) +", normalized)
+        summary_words: List[str] = []
+        for sentence in sentences:
+            sentence_words = sentence.split()
+            if not sentence_words:
+                continue
+            if len(summary_words) + len(sentence_words) > limit:
+                break
+            summary_words.extend(sentence_words)
+        if summary_words:
+            summary = " ".join(summary_words)
+        else:
+            summary = " ".join(words[:limit])
+        return summary.rstrip(".") + "."
 
     def _to_plain_text(self, text: str) -> str:
         lines: List[str] = []
@@ -432,6 +447,14 @@ class GoalNodeService:
         if clean[-1] in ".!?":
             return clean
         return clean + "."
+
+    def _enforce_sentence_limit(self, text: str, *, max_sentences: int) -> str:
+        snippets = [segment.strip() for segment in re.split(r"(?<=[.!?])\s+", text) if segment.strip()]
+        if not snippets:
+            return ""
+        limited = snippets[:max_sentences]
+        combined = " ".join(limited).strip()
+        return combined
 
     def _label_links(self, doc_links: List[str]) -> Dict[str, str]:
         mapping: Dict[str, str] = {}
