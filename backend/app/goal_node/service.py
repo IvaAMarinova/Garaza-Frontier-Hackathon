@@ -1,5 +1,6 @@
 import textwrap
 from typing import Dict, List, Optional
+from urllib.parse import urlparse
 
 from ..config import OPENAI_MODEL
 from ..context_loader import load_initial_context
@@ -44,7 +45,7 @@ Output strict JSON:
       "concept_id": "string",
       "depth": 2,
       "content_markdown": "markdown paragraph",
-      "doc_links": ["optional url"]
+      "doc_links": { "React Components": "https://react.dev/reference/react/Component" }
     }
   ]
 }
@@ -232,7 +233,7 @@ class GoalNodeService:
         payload = await self._llm.generate_json(
             model=self._model,
             messages=messages,
-            max_output_tokens=1600,
+            max_output_tokens=2400,
         )
         answer_patch = str(payload.get("answer_patch", "") or "").strip()
         if answer_patch:
@@ -249,20 +250,27 @@ class GoalNodeService:
                     continue
                 if concept_id not in targets:
                     continue
-                content = str(raw.get("content_markdown") or "").strip()
-                if not content:
+                content_raw = str(raw.get("content_markdown") or "").strip()
+                if not content_raw:
                     continue
-                summary_text = self._summarize_overlay_text(content)
+                content_plain = self._to_plain_text(content_raw)
+                summary_text = self._summarize_overlay_text(content_plain)
                 if not summary_text:
                     continue
                 depth = int(raw.get("depth", goal.meta.global_answer_depth + 1) or 2)
-                doc_links = raw.get("doc_links") or []
+                doc_links_raw = raw.get("doc_links") or []
+                if isinstance(doc_links_raw, dict):
+                    doc_links_raw = list(doc_links_raw.values())
+                elif not isinstance(doc_links_raw, list):
+                    doc_links_raw = []
+                doc_links_labeled = self._label_links(doc_links_raw)
+                summary_text = self._ensure_reference_mentions(summary_text, list(doc_links_labeled.keys()))
                 overlay_id = raw.get("id")
                 overlay = build_overlay(
                     concept_id,
                     depth=depth,
                     content_markdown=summary_text,
-                    doc_links=doc_links if isinstance(doc_links, list) else [],
+                    doc_links=doc_links_labeled,
                     overlay_id=overlay_id,
                 )
                 self._upsert_overlay(goal, overlay)
@@ -270,7 +278,7 @@ class GoalNodeService:
                     goal,
                     concept_id=concept_id,
                     concept_label=concept_lookup.get(concept_id, {}).get("label", concept_id),
-                    overlay_content=content,
+                    overlay_summary=summary_text,
                 )
                 weight = None
                 if concept_id in goal.focus:
@@ -280,7 +288,7 @@ class GoalNodeService:
                         goal.session_id,
                         concept_id=concept_id,
                         weight=weight,
-                        expansion=content,
+                        expansion=content_plain,
                     )
                 except KeyError:
                     continue
@@ -425,6 +433,48 @@ class GoalNodeService:
             return clean
         return clean + "."
 
+    def _label_links(self, doc_links: List[str]) -> Dict[str, str]:
+        mapping: Dict[str, str] = {}
+        counts: Dict[str, int] = {}
+        for raw in doc_links:
+            link = str(raw or "").strip()
+            if not link:
+                continue
+            label = self._link_to_label(link)
+            if label in mapping:
+                counts[label] = counts.get(label, 1) + 1
+                label = f"{label} ({counts[label]})"
+            mapping[label] = link
+        return mapping
+
+    def _ensure_reference_mentions(self, summary: str, references: List[str]) -> str:
+        if not references:
+            return summary
+        combined = summary.rstrip()
+        if not combined.endswith("."):
+            combined += "."
+        prefix = "Reference: " if len(references) == 1 else "References: "
+        clause = prefix + ", ".join(references) + "."
+        return f"{combined} {clause}"
+
+    def _link_to_label(self, link: str) -> str:
+        try:
+            parsed = urlparse(link)
+        except ValueError:
+            return "Reference"
+        path = (parsed.path or "").strip("/")
+        segment = path.split("/")[-1]
+        segment = segment.split("?")[0].split("#")[0]
+        base = segment or parsed.netloc.split(".")[0]
+        base = base.replace("-", " ").replace("_", " ").strip()
+        if not base:
+            base = parsed.netloc or "Reference"
+        words = [word.capitalize() for word in base.split()]
+        label = " ".join(words).strip() or "Reference"
+        if parsed.netloc.endswith("react.dev") and "React" not in label:
+            label = f"React {label}"
+        return label
+
     def _summarize_overlay_text(self, content: str) -> str:
         snippet_source = content.strip()
         if not snippet_source:
@@ -435,6 +485,7 @@ class GoalNodeService:
         sentence = first_line.split(". ")[0].strip()
         if not sentence:
             return ""
+        sentence = sentence.rstrip()
         if not sentence.endswith("."):
             sentence = sentence.rstrip(".") + "."
         return sentence
@@ -445,9 +496,9 @@ class GoalNodeService:
         *,
         concept_id: str,
         concept_label: str,
-        overlay_content: str,
+        overlay_summary: str,
     ) -> None:
-        summary = self._summarize_overlay_text(overlay_content)
+        summary = overlay_summary.strip()
         if not summary:
             return
         label = concept_label or concept_id

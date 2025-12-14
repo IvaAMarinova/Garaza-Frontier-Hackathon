@@ -11,6 +11,12 @@ Base URL: `/v1/chat`
   ```
 
 - `GET /sessions/{session_id}` &mdash; fetch stored messages + timestamps for a session.
+  Response also includes `started_ts`, the timestamp of the first user prompt (if any).
+
+- `POST /sessions/{session_id}/end` &mdash; records the completion moment and returns the time spent (seconds from first user prompt or session creation if no prompt yet).
+  ```json
+  { "session_id": "uuid", "seconds_spent": 128.42 }
+  ```
 
 - `POST /sessions/{session_id}/generate` &mdash; append a user turn and stream it through the configured LLM.  
   Request body:
@@ -33,7 +39,7 @@ Base URL: `/v1/chat`
   ```json
   { "mode": "incremental" }
   ```
-  Triggers concept extraction (incremental or full rebuild) and returns the graph snapshot.
+  Triggers concept extraction (incremental or full rebuild) and returns the graph snapshot. During extraction every concept connects only to the central intent node; additional edges only appear later (e.g., when decluttering promotes new child nodes).
 
 - `GET /sessions/{session_id}/concept-graph`
   Returns the latest graph snapshot (concepts, edges, meta) without rebuilding.
@@ -130,13 +136,6 @@ Base URL: `/v1/chat`
       "to_concept_id": "feature-123",
       "relation": "anchors",
       "introduced_index": 0
-    },
-    {
-      "id": "edge-789",
-      "from_concept_id": "feature-123",
-      "to_concept_id": "issue-222",
-      "relation": "blocks",
-      "introduced_index": 2
     }
   ],
   "meta": {
@@ -153,21 +152,10 @@ Base URL: `/v1/chat`
   ```json
   { "force": false }
   ```
-  Creates (or rebuilds) the initial Depth-1 plan as plain text grounded in `context.txt`. Every concept currently present in the concept graph is referenced once, and a trailing `Concept coverage: …` sentence summarizes how they map into the plan.
+  Creates (or rebuilds) the initial Depth-1 plan as plain text grounded in `context.txt`. Every concept currently present in the concept graph is referenced once, and a trailing `Concept coverage: …` sentence summarizes how they map into the plan. Overlay snippets are also plain text; each one ends with an inline “Reference(s)” clause that matches the keys exposed via `doc_links`.
 
 - `GET /sessions/{session_id}/goal?create_if_missing=true`
   Fetches the current goal node (plan text + overlays + focus scores).
-
-- `POST /sessions/{session_id}/goal/interactions`
-  ```json
-  {
-    "events": [
-      { "concept_id": "feature-123", "event": "expand", "strength": 1.0 }
-    ],
-    "auto_refine": true
-  }
-  ```
-  Records focus signals for specific concepts and optionally triggers a selective refinement pass.
 
 ### Goal Node Response Sample
 
@@ -181,8 +169,10 @@ Base URL: `/v1/chat`
       "id": "overlay-c1",
       "concept_id": "feature-123",
       "depth": 2,
-      "content_markdown": "Revisit the settings form component...",
-      "doc_links": ["https://react.dev/reference/react/Component"]
+      "content_markdown": "Revisit the settings form and outline the props that keep telemetry variants aligned with lifted state. References: React Component.",
+      "doc_links": {
+        "React Component": "https://react.dev/reference/react/Component"
+      }
     }
   ],
   "focus": {
@@ -200,6 +190,7 @@ Base URL: `/v1/chat`
   }
 }
 ```
+`overlays[].doc_links` is a dictionary where each key is the short phrase injected into `content_markdown` (inside the trailing “Reference(s)” clause) and each value is the corresponding documentation URL.
 
 ### Expanding a Concept (Focus Workflow)
 
@@ -207,20 +198,9 @@ Base URL: `/v1/chat`
    ```
    GET /v1/chat/sessions/{session_id}/concept-graph
    ```
-2. Post a focus interaction to highlight that concept (use `event="expand"` or `event="revisit"`). This records interest, updates its weight, and can trigger an immediate refinement:
-   ```json
-   POST /v1/chat/sessions/{session_id}/goal/interactions
-   {
-     "events": [
-       { "concept_id": "feature-123", "event": "expand", "strength": 1.0 }
-     ],
-     "auto_refine": true
-   }
-   ```
-3. Re-fetch the goal node to see the updated plan/overlays, and re-fetch the concept graph to see the concept’s `expansions`/`weight` updated with the new detail.
-
-4. Alternatively, call the dedicated expansion endpoint to both update the concept and trigger refinement in a single step:
+2. Call the dedicated expansion endpoint to both update the concept (weights/expansions) and trigger goal-node refinement in a single step:
    ```
    POST /v1/chat/sessions/{session_id}/concept-graph/{concept_id}/expand
    ```
    The response echoes the updated concept and includes any `new_children` + `new_edges` that were produced by the declutter pass.
+3. Re-fetch the goal node to see the updated plan/overlays, and re-fetch the concept graph to inspect the updated concept with any declutter output.

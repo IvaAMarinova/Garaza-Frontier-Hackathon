@@ -1,7 +1,7 @@
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .models import ChatMessage
 
@@ -9,6 +9,7 @@ from .models import ChatMessage
 class Session:
     created_ts: float = field(default_factory=lambda: time.time())
     messages: List[ChatMessage] = field(default_factory=list)
+    first_user_ts: Optional[float] = None
 
 class InMemoryChatStore:
     def __init__(self) -> None:
@@ -27,6 +28,8 @@ class InMemoryChatStore:
         if not s:
             raise KeyError("session not found")
         s.messages.append(msg)
+        if msg.role == "user" and s.first_user_ts is None:
+            s.first_user_ts = msg.ts
 
     def list_messages(self, session_id: str) -> List[ChatMessage]:
         s = self.get_session(session_id)
