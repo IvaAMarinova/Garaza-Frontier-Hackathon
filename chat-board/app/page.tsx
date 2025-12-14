@@ -4,7 +4,7 @@ import MindMapChat from "@/components/mind-map-chat"
 export default function Home() {
   return (
     <main className="min-h-screen">
-      <MindMapChat isDarkMode={false} height="100vh" />
+      <MindMapChat isDarkMode={true} height="100vh" />
     </main>
   )
 }

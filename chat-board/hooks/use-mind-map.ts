@@ -7,7 +7,7 @@ import { calculateNewNodePosition, adjustNodesForNewNode, validateAndFixOverlaps
 import { INITIAL_CENTER_NODE } from "../lib/constants"
 import { initializeTicTacToeSession, convertConceptGraphToNodes, getGoal } from "../lib/api"
 import type { Goal } from "../lib/types"
-export function useMindMap(initialText?: string, isDarkMode: boolean = false) {
+export function useMindMap(initialText?: string, isDarkMode: boolean = false, onStartNewJourney?: () => void) {
 
   // Node state - initialize center node at viewport center
   const [nodes, setNodes] = useState<Node[]>([])
@@ -15,6 +15,7 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [goal, setGoal] = useState<Goal | null>(null)
+  const [showCongratulations, setShowCongratulations] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const initializationInProgress = useRef(false)
   
@@ -141,8 +142,15 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false) {
   const [updatedNodes, setUpdatedNodes] = useState<Set<string>>(new Set())
 
   const handleFinish = useCallback(() => {
-    // Handle finish action - could navigate away, show completion modal, etc.
+    setShowCongratulations(true)
   }, [])
+
+  const handleCloseCongratulations = useCallback(() => {
+    setShowCongratulations(false)
+    if (onStartNewJourney) {
+      onStartNewJourney()
+    }
+  }, [onStartNewJourney])
 
   // Node management
   const addNode = useCallback((parentId: string, content: NodeContent) => {
@@ -544,9 +552,11 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false) {
     isLoading,
     zoomLevel,
     goal,
+    showCongratulations,
 
     // Actions
     handleFinish,
+    handleCloseCongratulations,
     addNode,
     deleteNode,
     editNode,

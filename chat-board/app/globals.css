@@ -145,6 +145,16 @@
   }
 }
 
+/* Goal Pulse Animation */
+@keyframes pulse-scale {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
 /* Disable text selection on mind map for better dragging */
 .mind-map-canvas {
   user-select: none;

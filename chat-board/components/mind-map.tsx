@@ -3,16 +3,19 @@
 import { useMindMap } from "../hooks/use-mind-map"
 import { NodeCard } from "./node-card"
 import GoalDisplay from "./goal-display"
+import CongratulationsPage from "./congratulations-page"
 
 interface MindMapProps {
   initialText?: string
   isDarkMode?: boolean
   containerHeight?: string
+  onStartNewJourney?: () => void
 }
 
 export default function MindMap({
   initialText,
-  isDarkMode = false,
+  isDarkMode = true,
+  onStartNewJourney,
   containerHeight,
 }: MindMapProps) {
   const {
@@ -28,6 +31,7 @@ export default function MindMap({
     isLoading,
     zoomLevel,
     goal,
+    showCongratulations,
 
     addNode,
     deleteNode,
@@ -37,9 +41,10 @@ export default function MindMap({
     zoomOut,
     resetZoom,
     handleFinish,
+    handleCloseCongratulations,
     handleMouseDown,
     handleBackgroundMouseDown,
-  } = useMindMap(initialText, isDarkMode)
+  } = useMindMap(initialText, isDarkMode, onStartNewJourney)
 
   return (
     <div
@@ -56,20 +61,53 @@ export default function MindMap({
       role="application"
       aria-label="Mind map canvas - drag nodes to move them or pan background"
     >
-      {/* Loading indicator */}
+      {/* Cool Loading Spinner */}
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-50">
-          <div
-            className={`rounded-lg p-6 shadow-lg ${isDarkMode ? "bg-slate-800" : "bg-white"}`}
-          >
-            <div className="flex items-center space-x-3">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span
-                className={isDarkMode ? "text-slate-300" : "text-slate-700"}
-              >
-                Loading mind map...
-              </span>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-50">
+          <div className="flex flex-col items-center">
+            {/* Custom Cool Spinner */}
+            <div className="relative w-24 h-24 mb-6">
+              {/* Outer rotating ring */}
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-indigo-500 border-r-indigo-400 animate-spin"></div>
+
+              {/* Middle rotating ring - opposite direction */}
+              <div
+                className="absolute inset-2 rounded-full border-4 border-transparent border-b-purple-500 border-l-purple-400"
+                style={{ animation: "spin 1.5s linear infinite reverse" }}
+              ></div>
+
+              {/* Inner pulsing dot */}
+              <div className="absolute inset-6 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 animate-pulse"></div>
+
+              {/* Floating particles */}
+              <div
+                className="absolute -top-1 left-1/2 w-2 h-2 bg-indigo-400 rounded-full animate-bounce"
+                style={{ animationDelay: "0s" }}
+              ></div>
+              <div
+                className="absolute top-1/2 -right-1 w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                style={{ animationDelay: "0.5s" }}
+              ></div>
+              <div
+                className="absolute -bottom-1 left-1/2 w-2 h-2 bg-indigo-400 rounded-full animate-bounce"
+                style={{ animationDelay: "1s" }}
+              ></div>
+              <div
+                className="absolute top-1/2 -left-1 w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                style={{ animationDelay: "1.5s" }}
+              ></div>
             </div>
+
+            <span
+              className={`text-lg font-medium ${isDarkMode ? "text-slate-300" : "text-slate-700"}`}
+            >
+              Creating your mind map...
+            </span>
+            <span
+              className={`text-sm mt-1 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}
+            >
+              Mapping concepts and connections
+            </span>
           </div>
         </div>
       )}
@@ -271,6 +309,22 @@ export default function MindMap({
           )
         })}
       </div>
+
+      {/* Congratulations Overlay */}
+      {showCongratulations && (
+        <div className="absolute inset-0 z-50">
+          {/* Blurred background */}
+          <div className="absolute inset-0 backdrop-blur-md bg-black/30" />
+
+          {/* Congratulations content */}
+          <CongratulationsPage
+            goal={goal}
+            initialText={initialText}
+            onClose={handleCloseCongratulations}
+            isDarkMode={isDarkMode}
+          />
+        </div>
+      )}
     </div>
   )
 }
