@@ -18,6 +18,14 @@ export function useTypewriter(text: string = "", options: UseTypewriterOptions =
     // Clear any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
+      timeoutRef.current = undefined
+    }
+
+    // If no text, don't start typing
+    if (!text || text.length === 0) {
+      setDisplayedText("")
+      setIsTyping(false)
+      return
     }
 
     // Reset state when text changes
@@ -32,6 +40,7 @@ export function useTypewriter(text: string = "", options: UseTypewriterOptions =
         timeoutRef.current = setTimeout(typeNextCharacter, speed)
       } else {
         setIsTyping(false)
+        timeoutRef.current = undefined
       }
     }
 
@@ -41,6 +50,7 @@ export function useTypewriter(text: string = "", options: UseTypewriterOptions =
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
+        timeoutRef.current = undefined
       }
     }
   }, [text, speed, delay])

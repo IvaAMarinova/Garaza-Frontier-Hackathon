@@ -257,4 +257,4 @@ class ConceptExtractor:
         words = text.split()
         if len(words) <= limit:
             return text
-        return " ".join(words[:limit]) + "..."
+        return " ".join(words[:limit])

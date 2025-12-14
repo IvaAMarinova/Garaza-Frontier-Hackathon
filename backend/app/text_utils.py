@@ -33,7 +33,7 @@ def _trim_length(value: str, limit: int = 96) -> str:
     if len(value) <= limit:
         return value
     trimmed = value[:limit].rsplit(" ", 1)[0].strip()
-    return f"{trimmed}..." if trimmed else value[:limit]
+    return trimmed if trimmed else value[:limit]
 
 
 def derive_intent_label(text: str) -> str:

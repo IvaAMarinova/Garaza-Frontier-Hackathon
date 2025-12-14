@@ -54,7 +54,7 @@ export default function CongratulationsPage({ goal, initialText: _initialText, o
   const getFullContent = () => {
     if (!goal) return ""
     
-    let content = goal.goal_statement
+    let content = goal.answer_markdown
 
     if (goal.overlays && goal.overlays.length > 0) {
       const sortedOverlays = goal.overlays.sort((a, b) => a.depth - b.depth)
@@ -141,8 +141,8 @@ export default function CongratulationsPage({ goal, initialText: _initialText, o
               Your Complete Learning Journey
             </div>
             <div className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? "text-yellow-300" : "text-yellow-700"}`}>
-              {/* Goal statement */}
-              {goal.goal_statement}
+              {/* Goal answer */}
+              {goal.answer_markdown}
               
               {/* All overlays with hyperlinks */}
               {goal.overlays && goal.overlays.length > 0 && (
