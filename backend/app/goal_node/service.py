@@ -23,7 +23,7 @@ from .models import (
 from .store import GoalNodeStore
 
 INITIAL_GOAL_PROMPT = """You act as the Goal Node author for a learning mind map.
-Return exactly two concise plain-text sentences (≤24 words each) that:
+Return exactly two ultra-concise plain-text sentences (≤18 words each) that:
 - Focus exclusively on the latest user query (ignore unrelated context).
 - Ground every statement in the provided documentation excerpt; when no excerpt exists, fall back to core React fundamentals without mentioning missing docs.
 - Mention every concept listed in the prompt at least once using short, natural clauses.
@@ -157,7 +157,7 @@ class GoalNodeService:
             - Provide narrative guidance only; never include code listings or API syntax.
             - Keep the discussion strictly about frontend architecture and React concepts relevant to the query; skip backend or tooling tangents.
             - Respond with the briefest abstract outline that still answers the user query; do not mention unrelated goals or background.
-            - Output exactly two plain-text, third-person sentences (each ≤24 words, no brackets, ellipses, or enumerations) and ensure the final sentence is complete.
+            - Output exactly two plain-text, third-person sentences (each ≤18 words, no brackets, ellipses, or enumerations) and ensure the final sentence is complete.
             """
         ).strip()
 
