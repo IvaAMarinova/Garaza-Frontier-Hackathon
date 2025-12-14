@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import type { Node, NodeContent } from "../lib/types"
 import { NODE_COLORS, CENTER_COLOR } from "../lib/colors"
-import { calculateNewNodePosition, adjustNodesForNewNode, validateAndFixOverlaps, estimateNodeDimensions } from "../lib/positioning"
+import { calculateNewNodePosition, adjustNodesForNewNode, validateAndFixOverlaps, estimateNodeDimensions, calculateAndStoreBounds, pushNodesAwayFromDragged, getNodeBounds, areNodesTooClose } from "../lib/positioning"
 import { INITIAL_CENTER_NODE } from "../lib/constants"
 import { initializeTicTacToeSession, convertConceptGraphToNodes, getGoal, type ConceptGraphNode, type ConceptExpandResponse, type GoalResponse } from "../lib/api"
 
@@ -48,7 +48,7 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
           const { centerNode, childNodes } = convertConceptGraphToNodes(conceptGraph)
           
           // Create center node (position in unscaled coordinates)
-          const centerNodeObj: Node = {
+          const centerNodeObj: Node = calculateAndStoreBounds({
             ...INITIAL_CENTER_NODE,
             x: rect.width / 2,
             y: rect.height / 2,
@@ -56,7 +56,7 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
               color: CENTER_COLOR.light.replace(/border-\w+-\d+/g, 'border-slate-600').replace(/bg-\w+-\d+\/\d+/g, 'bg-slate-800/90').replace(/text-\w+-\d+/g, 'text-slate-100'),            conceptId: centerNode.conceptId,
             weight: centerNode.weight,
             completed: centerNode.completed,
-          }
+          })
           
           // Create child nodes using simple tree structure
           const childNodeObjs: Node[] = []
@@ -75,39 +75,23 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
             }
             
             const siblings = childNodeObjs.filter(n => n.parentId === parentNode.id)
-            const siblingCount = siblings.length
             
-            let position: { x: number; y: number }
-            
-            if (parentNode === centerNodeObj) {
-              // Level 1 nodes - radial positioning around center
-              const angleStep = (2 * Math.PI) / Math.max(6, siblingCount + 1)
-              const angle = siblingCount * angleStep
-              const distance = 220
-              
-              position = {
-                x: centerNodeObj.x + Math.cos(angle) * distance,
-                y: centerNodeObj.y + Math.sin(angle) * distance
-              }
-            } else {
-              // Level 2+ nodes - position relative to parent
-              const parentAngle = Math.atan2(parentNode.y - centerNodeObj.y, parentNode.x - centerNodeObj.x)
-              const childAngleSpread = Math.PI / 3
-              const childAngle = parentAngle + (siblingCount - (siblingCount + 1) / 2) * (childAngleSpread / Math.max(1, siblingCount))
-              const distance = 150
-              
-              position = {
-                x: parentNode.x + Math.cos(childAngle) * distance,
-                y: parentNode.y + Math.sin(childAngle) * distance
-              }
-            }
+            // Use the positioning system to calculate safe position that accounts for actual node dimensions
+            const position = calculateNewNodePosition(
+              parentNode,
+              siblings,
+              [centerNodeObj, ...childNodeObjs],
+              content
+            )
             
             // Assign colors (use dark mode versions)
             const nodeColor = parentNode === centerNodeObj 
-              ? NODE_COLORS[siblingCount % NODE_COLORS.length].light.replace(/border-\w+-300/g, (match) => match.replace('300', '700')).replace(/bg-\w+-50\/80/g, (match) => match.replace('50/80', '950/50')).replace(/text-\w+-900/g, (match) => match.replace('900', '100'))
+              ? NODE_COLORS[siblings.length % NODE_COLORS.length].light.replace(/border-\w+-300/g, (match) => match.replace('300', '700')).replace(/bg-\w+-50\/80/g, (match) => match.replace('50/80', '950/50')).replace(/text-\w+-900/g, (match) => match.replace('900', '100'))
               : parentNode.color
             
-            const childNode: Node = {
+            // Create node with calculated position - the positioning system already accounts for collisions
+            // But we'll validate it one more time to be sure
+            const childNode: Node = calculateAndStoreBounds({
               id: crypto.randomUUID(),
               content,
               x: position.x,
@@ -117,10 +101,38 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
               conceptId: content.conceptId,
               weight: content.weight,
               completed: content.completed,
+            })
+            
+            // Check if this node collides with any existing nodes
+            const allExistingNodes = [centerNodeObj, ...childNodeObjs]
+            const childBounds = childNode.bounds!
+            let hasCollision = false
+            for (const existingNode of allExistingNodes) {
+              const existingBounds = getNodeBounds(existingNode)
+              if (areNodesTooClose(childBounds, existingBounds)) {
+                hasCollision = true
+                break
+              }
             }
             
-            childNodeObjs.push(childNode)
-            nodeMap.set(content.conceptId, childNode)
+            // If collision detected, recalculate position with all existing nodes
+            let finalNode = childNode
+            if (hasCollision) {
+              const safePosition = calculateNewNodePosition(
+                parentNode,
+                siblings,
+                allExistingNodes,
+                content
+              )
+              finalNode = calculateAndStoreBounds({
+                ...childNode,
+                x: safePosition.x,
+                y: safePosition.y,
+              })
+            }
+            
+            childNodeObjs.push(finalNode)
+            nodeMap.set(content.conceptId, finalNode)
           })
           
           // Initialize weights from backend data
@@ -136,16 +148,25 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
           setTotalWeight(initialTotal)
           console.log(`Initialized with total weight: ${initialTotal}`)
 
-          // Start with just the center node
-          setNodes([centerNodeObj])
+          // Validate all nodes before adding to ensure no collisions
+          const allInitialNodes = [centerNodeObj, ...childNodeObjs]
+          const validatedNodes = validateAndFixOverlaps(allInitialNodes)
           
-          // Add child nodes one by one with delays
-          childNodeObjs.forEach((childNode, index) => {
+          // Start with just the center node
+          setNodes([validatedNodes[0]])
+          
+          // Add child nodes one by one with delays, but use pre-validated positions
+          const validatedChildNodes = validatedNodes.slice(1)
+          validatedChildNodes.forEach((childNode, index) => {
             setTimeout(() => {
               setNodes(prevNodes => {
-                const newNodes = [...prevNodes, childNode]
-                // Validate positions to ensure no overlaps
-                return validateAndFixOverlaps(newNodes)
+                // Use the pre-validated position to avoid collisions
+                const existingNode = prevNodes.find(n => n.id === childNode.id)
+                if (existingNode) {
+                  // Node already exists, just return current state
+                  return prevNodes
+                }
+                return [...prevNodes, childNode]
               })
               // Add to newly created nodes for animation
               setNewlyCreatedNodes(prev => new Set([...prev, childNode.id]))
@@ -163,14 +184,14 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
         } catch {
           // Fallback to default initialization
           setNodes([
-            {
+            calculateAndStoreBounds({
               ...INITIAL_CENTER_NODE,
               x: rect.width / 2,
               y: rect.height / 2,
               content: { text: initialText || "Tic Tac Toe Game", header: "Game Concept" },
               color: CENTER_COLOR.light.replace(/border-\w+-\d+/g, 'border-slate-600').replace(/bg-\w+-\d+\/\d+/g, 'bg-slate-800/90').replace(/text-\w+-\d+/g, 'text-slate-100'),
               conceptId: "fallback",
-            },
+            }),
           ])
         } finally {
           setIsLoading(false)
@@ -253,17 +274,17 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
 
       const position = calculateNewNodePosition(parent, siblings, prevNodes, content)
       
-      const newNode: Node = {
+      const newNode: Node = calculateAndStoreBounds({
         id: crypto.randomUUID(),
         content,
         x: position.x,
         y: position.y,
         color: nodeColor,
         parentId,
-      }
+      })
 
-      // Calculate new node dimensions
-      const { width, height } = estimateNodeDimensions(newNode)
+      // Calculate new node dimensions from stored bounds
+      const { width, height } = newNode.bounds || estimateNodeDimensions(newNode)
 
       // Adjust existing nodes to make room for the new node
       const adjustedNodes = adjustNodesForNewNode(position, newNode.id, width, height, prevNodes)
@@ -322,7 +343,13 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
   )
 
   const editNode = useCallback((id: string, content: NodeContent) => {
-    setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, content } : n)))
+    setNodes((prev) => prev.map((n) => {
+      if (n.id === id) {
+        // Recalculate bounds when content changes (size might change)
+        return calculateAndStoreBounds({ ...n, content })
+      }
+      return n
+    }))
 
     // Add update animation
     setUpdatedNodes((prev) => new Set([...prev, id]))
@@ -361,39 +388,37 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
         ? `${updatedConcept.summary}\n\n${expansionText}`
         : updatedConcept.summary
       
-      // Update the existing node with new content
+      // Update the existing node with new content and recalculate bounds
       const updatedNodes = prevNodes.map(n => 
         n.conceptId === conceptId 
-          ? { 
+          ? calculateAndStoreBounds({ 
               ...n, 
               content: { 
                 ...n.content, 
                 text: combinedText,
                 header: updatedConcept.label 
               } 
-            }
+            })
           : n
       )
       
       // Add new child nodes if any
       const newNodeObjs: Node[] = []
-      newChildren.forEach((child, index) => {
+      newChildren.forEach((child) => {
         const siblings = updatedNodes.filter(n => n.parentId === nodeToUpdate.id)
-        const siblingCount = siblings.length + index
         
-        // Calculate position for new child node
-        const parentAngle = Math.atan2(nodeToUpdate.y - (containerRef.current?.getBoundingClientRect().height || 0) / 2, 
-                                      nodeToUpdate.x - (containerRef.current?.getBoundingClientRect().width || 0) / 2)
-        const childAngleSpread = Math.PI / 3
-        const childAngle = parentAngle + (siblingCount - (siblingCount + 1) / 2) * (childAngleSpread / Math.max(1, siblingCount + 1))
-        const distance = 150
+        // Use the same positioning logic as calculateNewNodePosition
+        const position = calculateNewNodePosition(
+          nodeToUpdate,
+          siblings,
+          updatedNodes,
+          {
+            text: child.summary,
+            header: child.label
+          }
+        )
         
-        const position = {
-          x: nodeToUpdate.x + Math.cos(childAngle) * distance,
-          y: nodeToUpdate.y + Math.sin(childAngle) * distance
-        }
-        
-        const newNode: Node = {
+        const newNode: Node = calculateAndStoreBounds({
           id: crypto.randomUUID(),
           content: {
             text: child.summary,
@@ -404,7 +429,7 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
           color: nodeToUpdate.color,
           parentId: nodeToUpdate.id,
           conceptId: child.id,
-        }
+        })
         
         newNodeObjs.push(newNode)
       })
@@ -593,22 +618,17 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
         const draggingNode = prev.find((n) => n.id === draggingId)
         if (!draggingNode) return prev
         
-        // Calculate dragging node dimensions
-        const { width, height } = estimateNodeDimensions(draggingNode)
+        // Create updated dragging node with new position and recalculate bounds
+        const updatedDraggingNode = calculateAndStoreBounds({ ...draggingNode, x: newX, y: newY })
         
-        // Create updated dragging node with new position
-        const updatedDraggingNode = { ...draggingNode, x: newX, y: newY }
+        // Get the bounds of the dragged node
+        const draggedBounds = updatedDraggingNode.bounds!
         
-        // Get all other nodes (excluding the dragging node)
-        const otherNodes = prev.filter(n => n.id !== draggingId)
-        
-        // Adjust other nodes to make room for the dragging node at its new position
-        const adjustedNodes = adjustNodesForNewNode(
-          { x: newX, y: newY },
-          draggingId,
-          width,
-          height,
-          otherNodes
+        // Push other nodes away from the dragged node to maintain minimum distance
+        const adjustedNodes = pushNodesAwayFromDragged(
+          draggedBounds,
+          prev.filter(n => n.id !== draggingId),
+          draggingId
         )
         
         // Return adjusted nodes with the updated dragging node
@@ -674,14 +694,15 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
   }, [])
 
 
-  // Memoized connections for performance - recalculate during dragging for smooth lines
+  // Calculate connections - update immediately when nodes change (no heavy memoization)
+  // This ensures lines update instantly when nodes are pushed
   const connections = useMemo(() => {
     return nodes
       .map((node) => {
         const parent = nodes.find((n) => n.id === node.parentId)
         if (!parent) return null
 
-        // Use pixel coordinates directly
+        // Use pixel coordinates directly from node positions
         const x1 = parent.x
         const y1 = parent.y
         const x2 = node.x
@@ -701,7 +722,7 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
         }
       })
       .filter(Boolean)
-  }, [nodes, isDarkMode, draggingId])
+  }, [nodes]) // Only depend on nodes - this ensures immediate updates
 
   // Weight tracking functions
   const incrementNodeWeight = useCallback((conceptId: string, increment: number = 1) => {

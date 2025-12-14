@@ -17,6 +17,8 @@ export interface Node {
   conceptId?: string
   weight?: number
   completed?: boolean
+  // Stored bounds for exact collision detection
+  bounds?: NodeBounds
 }
 
 export interface Position {

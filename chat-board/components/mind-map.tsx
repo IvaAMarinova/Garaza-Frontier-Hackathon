@@ -238,7 +238,6 @@ export default function MindMap({
                   stroke={connection!.strokeColor}
                   strokeWidth="2"
                   fill="none"
-                  className={draggingId ? "" : "transition-all duration-300"}
                   style={{
                     opacity: isNewConnection ? 0 : 1,
                     animation: isNewConnection

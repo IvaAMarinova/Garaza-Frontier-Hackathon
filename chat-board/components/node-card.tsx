@@ -192,8 +192,8 @@ export function NodeCard({
     <div
       className={`group relative px-2 py-2 rounded-xl border-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg select-none ${node.color} ${
         isCenter
-          ? "px-4 py-3 font-semibold text-base min-w-[80px]"
-          : "min-w-[60px] text-sm"
+          ? "px-4 py-3 font-semibold text-base min-w-[80px] max-w-[300px]"
+          : "min-w-[60px] max-w-[250px] text-sm"
       } ${isDragging ? "cursor-grabbing shadow-2xl scale-105 z-50 node-dragging" : "cursor-grab"} ${
         isUpdated ? "ring-1 ring-green-400/30" : ""
       }`}
@@ -218,7 +218,7 @@ export function NodeCard({
             {node.content.header}
           </div>
         )}
-        <div className="whitespace-pre-wrap leading-relaxed select-none">
+        <div className="whitespace-pre-wrap break-words leading-relaxed select-none">
           {typewriterText}
           {isTyping && (
             <span className="animate-pulse text-blue-500 ml-0.5">|</span>
