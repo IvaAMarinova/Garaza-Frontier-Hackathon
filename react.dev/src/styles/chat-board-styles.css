@@ -1,0 +1,220 @@
+/* Chat Board Styles - Scoped with highest priority for MindMapChat component */
+
+/* CSS Variables - Scoped to chat-board-container */
+.chat-board-container {
+  /* Import all CSS variables from chat-board */
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  
+  /* Dark mode variables */
+  isolation: isolate;
+}
+
+.chat-board-container.dark,
+.chat-board-container [data-dark-mode="true"],
+.chat-board-container .dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Mind Map Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes fadeInConnection {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Goal Pulse Animation */
+@keyframes pulse-scale {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* High priority styles scoped to chat-board-container */
+.chat-board-container * {
+  box-sizing: border-box !important;
+}
+
+/* Disable text selection on mind map for better dragging */
+.chat-board-container .mind-map-canvas {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Allow text selection only in input fields */
+.chat-board-container .mind-map-canvas input,
+.chat-board-container .mind-map-canvas textarea {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+/* Prevent text selection during drag operations */
+.chat-board-container .cursor-grabbing,
+.chat-board-container .cursor-grabbing * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Smooth dragging experience */
+.chat-board-container .node-dragging {
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Optimize SVG rendering for smooth connections */
+.chat-board-container .canvas-container svg {
+  will-change: auto !important;
+  transform: translateZ(0) !important;
+}
+
+/* Disable transitions on connections during dragging */
+.chat-board-container .dragging-active path {
+  transition: none !important;
+}
+
+/* Ensure Tailwind utility classes work within the container with highest priority */
+.chat-board-container .bg-card,
+.chat-board-container [class*="bg-card"] {
+  background-color: var(--card) !important;
+}
+
+.chat-board-container .text-foreground,
+.chat-board-container [class*="text-foreground"] {
+  color: var(--foreground) !important;
+}
+
+.chat-board-container .text-muted-foreground,
+.chat-board-container [class*="text-muted-foreground"] {
+  color: var(--muted-foreground) !important;
+}
+
+.chat-board-container .bg-primary,
+.chat-board-container [class*="bg-primary"]:not([class*="hover"]) {
+  background-color: var(--primary) !important;
+}
+
+.chat-board-container .bg-primary\/90,
+.chat-board-container .hover\:bg-primary\/90:hover {
+  background-color: oklch(from var(--primary) l c h / 0.9) !important;
+}
+
+.chat-board-container .text-primary-foreground,
+.chat-board-container [class*="text-primary-foreground"] {
+  color: var(--primary-foreground) !important;
+}
+
+.chat-board-container .border-border,
+.chat-board-container [class*="border-border"] {
+  border-color: var(--border) !important;
+}
+
+.chat-board-container .bg-background,
+.chat-board-container [class*="bg-background"] {
+  background-color: var(--background) !important;
+}
+
+/* Ensure proper z-index stacking and container isolation */
+.chat-board-container {
+  position: relative !important;
+  z-index: 1 !important;
+  contain: layout style paint !important;
+}
+
+/* Force all child elements to inherit CSS variables */
+.chat-board-container,
+.chat-board-container * {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-border: var(--border);
+  --color-muted-foreground: var(--muted-foreground);
+}

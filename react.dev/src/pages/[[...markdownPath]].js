@@ -54,12 +54,12 @@ export default function Layout({content, toc, meta, languages}) {
   }
   
   // Special case for tutorial page - render mind map chat within the page layout
-  // Wrap in container to preserve original styles
+  // Wrap in container to preserve original styles with highest priority
   const pageContent = path === '/learn/tutorial-tic-tac-toe' 
     ? (
-        <div className="chat-board-container" style={{ isolation: 'isolate' }}>
+        <div className="chat-board-container dark" style={{ isolation: 'isolate' }}>
           <MindMapChat 
-            isDarkMode={false} 
+            isDarkMode={true} 
             height="600px"
             className="shadow-lg"
           />
