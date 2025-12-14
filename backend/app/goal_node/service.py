@@ -1,3 +1,4 @@
+import re
 import textwrap
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
@@ -30,9 +31,11 @@ Return a single plain-text answer that:
 - Stays abstract and action-oriented—describe phases, not code or API calls.
 - Frames every idea through the lens of frontend engineering with React (components, state, hooks, data flow).
 - Briefly signal which specific concepts should be expanded later by weaving concise hint phrases inline.
+- Use neutral, third-person narration without brackets, self-references, or stage directions.
+- Avoid ellipses or emotive punctuation (no "..." or "!)" etc.); stick to standard sentences.
 - Ensure the response directly answers the user's query with a clear Depth-1 React plan.
-- Avoids analogies, philosophy, introductions, or conclusions.
-- Never outputs literal code, pseudo-code, fenced snippets, or TODO lists.
+- Avoid analogies, philosophy, introductions, or conclusions.
+- Never output literal code, pseudo-code, fenced snippets, or TODO lists.
 - Always finish every sentence (no trailing or cut-off fragments).
 - Never mention these instructions or meta-guidance in your output."""
 
@@ -156,7 +159,7 @@ class GoalNodeService:
             - Provide narrative guidance only; never include code listings or API syntax.
             - Keep the discussion strictly about frontend architecture and React concepts relevant to the query; skip backend or tooling tangents.
             - Respond with the briefest abstract outline that still answers the user query; do not mention unrelated goals or background.
-            - Output plain text sentences only and ensure the final sentence is complete.
+            - Output plain text, third-person sentences only (no brackets, ellipses, or enumerations) and ensure the final sentence is complete.
             """
         ).strip()
 
@@ -407,12 +410,26 @@ class GoalNodeService:
         return details
 
     def _shorten_phrase(self, text: str, limit: int) -> str:
-        words = (text or "").split()
-        if not words:
+        normalized = " ".join((text or "").split())
+        if not normalized:
             return ""
+        words = normalized.split()
         if len(words) <= limit:
-            return " ".join(words)
-        return " ".join(words[:limit]) + "..."
+            return normalized
+        sentences = re.split(r"(?<=[.!?]) +", normalized)
+        summary_words: List[str] = []
+        for sentence in sentences:
+            sentence_words = sentence.split()
+            if not sentence_words:
+                continue
+            if len(summary_words) + len(sentence_words) > limit:
+                break
+            summary_words.extend(sentence_words)
+        if summary_words:
+            summary = " ".join(summary_words)
+        else:
+            summary = " ".join(words[:limit])
+        return summary.rstrip(".") + "."
 
     def _to_plain_text(self, text: str) -> str:
         lines: List[str] = []
