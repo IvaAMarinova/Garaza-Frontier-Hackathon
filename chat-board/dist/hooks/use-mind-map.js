@@ -4,13 +4,14 @@ import { NODE_COLORS, CENTER_COLOR } from "../lib/colors";
 import { calculateNewNodePosition, adjustNodesForNewNode, validateAndFixOverlaps, estimateNodeDimensions } from "../lib/positioning";
 import { INITIAL_CENTER_NODE } from "../lib/constants";
 import { initializeTicTacToeSession, convertConceptGraphToNodes, getGoal } from "../lib/api";
-export function useMindMap(initialText, isDarkMode = false) {
+export function useMindMap(initialText, isDarkMode = false, onStartNewJourney) {
     // Node state - initialize center node at viewport center
     const [nodes, setNodes] = useState([]);
     const [isInitialized, setIsInitialized] = useState(false);
     const [sessionId, setSessionId] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [goal, setGoal] = useState(null);
+    const [showCongratulations, setShowCongratulations] = useState(false);
     const containerRef = useRef(null);
     const initializationInProgress = useRef(false);
     // Initialize with tic tac toe concept graph
@@ -120,8 +121,14 @@ export function useMindMap(initialText, isDarkMode = false) {
     const [newlyCreatedNodes, setNewlyCreatedNodes] = useState(new Set());
     const [updatedNodes, setUpdatedNodes] = useState(new Set());
     const handleFinish = useCallback(() => {
-        // Handle finish action - could navigate away, show completion modal, etc.
+        setShowCongratulations(true);
     }, []);
+    const handleCloseCongratulations = useCallback(() => {
+        setShowCongratulations(false);
+        if (onStartNewJourney) {
+            onStartNewJourney();
+        }
+    }, [onStartNewJourney]);
     // Node management
     const addNode = useCallback((parentId, content) => {
         setNodes((prevNodes) => {
@@ -437,8 +444,10 @@ export function useMindMap(initialText, isDarkMode = false) {
         isLoading,
         zoomLevel,
         goal,
+        showCongratulations,
         // Actions
         handleFinish,
+        handleCloseCongratulations,
         addNode,
         deleteNode,
         editNode,

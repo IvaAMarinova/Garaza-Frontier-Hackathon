@@ -1,6 +1,6 @@
 import type { Node, NodeContent } from "../lib/types";
 import type { Goal } from "../lib/types";
-export declare function useMindMap(initialText?: string, isDarkMode?: boolean): {
+export declare function useMindMap(initialText?: string, isDarkMode?: boolean, onStartNewJourney?: () => void): {
     nodes: Node[];
     draggingId: string;
     containerRef: import("react").RefObject<HTMLDivElement>;
@@ -20,7 +20,9 @@ export declare function useMindMap(initialText?: string, isDarkMode?: boolean): 
     isLoading: boolean;
     zoomLevel: number;
     goal: Goal;
+    showCongratulations: boolean;
     handleFinish: () => void;
+    handleCloseCongratulations: () => void;
     addNode: (parentId: string, content: NodeContent) => void;
     deleteNode: (id: string) => void;
     editNode: (id: string, content: NodeContent) => void;
