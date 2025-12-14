@@ -599,33 +599,6 @@ _GOAL_NODE_HTML = """<!DOCTYPE html>
     </section>
 
     <section class="card">
-      <div class="controls">
-        <label style="flex:2;">
-          Concept ID
-          <input id="goal-concept-id" placeholder="concept id" />
-        </label>
-        <label style="flex:1;">
-          Event
-          <select id="goal-event">
-            <option value="expand">Expand</option>
-            <option value="revisit">Revisit</option>
-            <option value="confused">Confused</option>
-            <option value="mastered">Mastered</option>
-            <option value="collapse">Collapse</option>
-          </select>
-        </label>
-        <label style="width:120px;">
-          Strength
-          <input id="goal-strength" type="number" value="1" min="0" step="0.25" />
-        </label>
-        <label style="width:160px; text-transform:none; letter-spacing:normal;">
-          <input type="checkbox" id="goal-auto-refine" checked /> Auto refine
-        </label>
-        <button id="goal-send">Send event</button>
-      </div>
-    </section>
-
-    <section class="card">
       <h2>Goal node state</h2>
       <pre id="goal-json">Use the controls above to load the goal node.</pre>
     </section>
@@ -638,11 +611,6 @@ _GOAL_NODE_HTML = """<!DOCTYPE html>
     const fetchBtn = document.getElementById("goal-fetch");
     const createBtn = document.getElementById("goal-create");
     const forceBtn = document.getElementById("goal-force");
-    const sendBtn = document.getElementById("goal-send");
-    const conceptInput = document.getElementById("goal-concept-id");
-    const eventSelect = document.getElementById("goal-event");
-    const strengthInput = document.getElementById("goal-strength");
-    const autoRefineInput = document.getElementById("goal-auto-refine");
     const SESSION_STORAGE_KEY = "dev-session-id";
     function getStoredSessionId() {
       try {
@@ -676,7 +644,7 @@ _GOAL_NODE_HTML = """<!DOCTYPE html>
     }
 
     function toggleBusy(isBusy) {
-      [fetchBtn, createBtn, forceBtn, sendBtn].forEach((btn) => (btn.disabled = isBusy));
+      [fetchBtn, createBtn, forceBtn].forEach((btn) => (btn.disabled = isBusy));
     }
 
     function renderGoal(data) {
@@ -739,54 +707,9 @@ _GOAL_NODE_HTML = """<!DOCTYPE html>
       }
     }
 
-    async function sendEvent() {
-      const sessionId = sessionInput.value.trim();
-      if (!sessionId) {
-        setStatus("Provide a session ID first.", true);
-        return;
-      }
-      setStoredSessionId(sessionId);
-      const conceptId = conceptInput.value.trim();
-      if (!conceptId) {
-        setStatus("Provide a concept id.", true);
-        return;
-      }
-      const strength = parseFloat(strengthInput.value) || 0;
-      try {
-        toggleBusy(true);
-        setStatus("Applying interaction…");
-        const res = await fetch(`/v1/chat/sessions/${sessionId}/goal/interactions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            events: [
-              {
-                concept_id: conceptId,
-                event: eventSelect.value,
-                strength: strength,
-              },
-            ],
-            auto_refine: autoRefineInput.checked,
-          }),
-        });
-        if (!res.ok) {
-          throw new Error("Request failed (" + res.status + ")");
-        }
-        const data = await res.json();
-        renderGoal(data);
-        setStatus("Interaction recorded.");
-      } catch (err) {
-        renderGoal({ error: err.message });
-        setStatus(err.message || "Failed to record interaction.", true);
-      } finally {
-        toggleBusy(false);
-      }
-    }
-
     fetchBtn.addEventListener("click", () => fetchGoal(true));
     createBtn.addEventListener("click", () => createGoal(false));
     forceBtn.addEventListener("click", () => createGoal(true));
-    sendBtn.addEventListener("click", sendEvent);
   </script>
 </body>
 </html>

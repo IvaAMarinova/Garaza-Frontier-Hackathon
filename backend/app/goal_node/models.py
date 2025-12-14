@@ -19,7 +19,7 @@ class GoalOverlay:
     concept_id: str
     depth: int
     content_markdown: str
-    doc_links: List[str] = field(default_factory=list)
+    doc_links: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -84,7 +84,7 @@ def build_overlay(
     *,
     depth: int,
     content_markdown: str,
-    doc_links: Optional[List[str]] = None,
+    doc_links: Optional[Dict[str, str]] = None,
     overlay_id: Optional[str] = None,
 ) -> GoalOverlay:
     return GoalOverlay(
@@ -92,7 +92,7 @@ def build_overlay(
         concept_id=concept_id,
         depth=max(1, min(depth, 3)),
         content_markdown=content_markdown.strip(),
-        doc_links=[link for link in (doc_links or []) if link],
+        doc_links={label: link for label, link in (doc_links or {}).items() if label and link},
     )
 
 

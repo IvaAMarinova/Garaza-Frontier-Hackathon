@@ -56,7 +56,7 @@ class ConceptGraphService:
             messages=slice_messages,
             start_index=start_index,
         )
-        graph.merge(concepts=extraction.concepts, edges=extraction.edges)
+        graph.merge(concepts=extraction.concepts, edges=[])
         graph.meta.last_processed_index = len(messages) - 1
         self._ensure_intent_links(session_id, graph, session=session)
         self._graphs.upsert(session_id, graph)
@@ -284,7 +284,6 @@ class ConceptGraphService:
         if len(snippet) > limit:
             snippet = snippet[:limit].rsplit(" ", 1)[0]
             snippet = snippet.rstrip(",.;:")
-            snippet = f"{snippet}..."
         return snippet
 
     def _spawn_children(
@@ -347,10 +346,12 @@ class ConceptGraphService:
         if not candidate:
             candidate = " ".join(snippet.split()[:5]).strip()
         candidate = candidate.rstrip(".")
-        if not candidate:
-            candidate = f"{parent_label} detail {index + 1}"
-        if len(candidate) > 64:
-            candidate = candidate[:64].rsplit(" ", 1)[0].strip()
+        candidate_words = candidate.split()
+        if len(candidate_words) > 6:
+            candidate = " ".join(candidate_words[:6])
+        candidate = candidate.strip(" ,;:-")
+        if candidate:
+            candidate = candidate.title()
         if not candidate:
             candidate = f"{parent_label} detail {index + 1}"
         return candidate
