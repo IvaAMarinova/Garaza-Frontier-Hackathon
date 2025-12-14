@@ -351,6 +351,17 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
       const nodeToUpdate = prevNodes.find(n => n.conceptId === conceptId)
       if (!nodeToUpdate) return prevNodes
       
+      // Combine original summary with expansion text from the response
+      const originalText = nodeToUpdate.content.text || ""
+      const expansionText = updatedConcept.expansions && updatedConcept.expansions.length > 0 
+        ? updatedConcept.expansions[updatedConcept.expansions.length - 1] // Get the latest expansion
+        : ""
+      
+      // Create combined text: original summary + expansion text
+      const combinedText = expansionText 
+        ? `${updatedConcept.summary}\n\n${expansionText}`
+        : updatedConcept.summary
+      
       // Update the existing node with new content
       const updatedNodes = prevNodes.map(n => 
         n.conceptId === conceptId 
@@ -358,7 +369,7 @@ export function useMindMap(initialText?: string, isDarkMode: boolean = false, on
               ...n, 
               content: { 
                 ...n.content, 
-                text: updatedConcept.summary,
+                text: combinedText,
                 header: updatedConcept.label 
               } 
             }

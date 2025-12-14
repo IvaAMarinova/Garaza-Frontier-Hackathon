@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Plus, Sparkles, ChevronDown } from "lucide-react"
 import type { Node, NodeContent } from "../lib/types"
 import { CodeBlock } from "./code-block"
@@ -52,9 +52,11 @@ export function NodeCard({
   const [isConceptExpanding, setIsConceptExpanding] = useState(false)
   const [typewriterText, setTypewriterText] = useState(node.content.text)
   const [isTyping, setIsTyping] = useState(false)
+  const [lastProcessedText, setLastProcessedText] = useState(node.content.text)
+  const typewriterTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleTextSubmit = async () => {
-    if (inputText.trim() && sessionId && conceptId) {
+    if (inputText.trim() && sessionId && conceptId && onExpandConcept) {
       setIsExpanding(true)
       try {
         // Increment weight on interaction
@@ -63,15 +65,18 @@ export function NodeCard({
         }
 
         // Expand the concept using the API
-        await expandConcept(sessionId, conceptId, {
+        const response = await expandConcept(sessionId, conceptId, {
           expansion: inputText.trim(),
           auto_refine: true,
         })
 
-
-
-        // Create child nodes locally
-        onAddChild(node.id, { text: inputText.trim() })
+        // Update the current node with expanded content and create new children
+        onExpandConcept(
+          conceptId,
+          response.concept,
+          response.new_children,
+          response.new_edges
+        )
 
         setInputText("")
         setShowTextInput(false)
@@ -103,31 +108,48 @@ export function NodeCard({
 
 
   useEffect(() => {
-    if (isUpdated && node.content.text !== typewriterText) {
-      // Node was updated, start typewriter effect
-      typewriterEffect(node.content.text)
-    } else if (!isUpdated && typewriterText !== node.content.text) {
-      // Initial load or normal update, set text immediately
-      setTypewriterText(node.content.text)
+    // Only process if the text has actually changed from what we last processed
+    if (node.content.text !== lastProcessedText) {
+      if (isUpdated) {
+        // Node was updated, start typewriter effect
+        typewriterEffect(node.content.text)
+      } else {
+        // Initial load or normal update, set text immediately
+        setTypewriterText(node.content.text)
+      }
+      setLastProcessedText(node.content.text)
     }
-  }, [node.content.text, isUpdated, typewriterText])
+  }, [node.content.text, isUpdated, lastProcessedText])
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (typewriterTimerRef.current) {
+        clearInterval(typewriterTimerRef.current)
+      }
+    }
+  }, [])
 
   const typewriterEffect = (text: string) => {
+    // Clear any existing timer
+    if (typewriterTimerRef.current) {
+      clearInterval(typewriterTimerRef.current)
+    }
+    
     setIsTyping(true)
     setTypewriterText("")
     let index = 0
 
-    const timer = setInterval(() => {
+    typewriterTimerRef.current = setInterval(() => {
       if (index < text.length) {
-        setTypewriterText((prev) => prev + text[index])
+        setTypewriterText(text.substring(0, index + 1))
         index++
       } else {
-        clearInterval(timer)
+        clearInterval(typewriterTimerRef.current!)
+        typewriterTimerRef.current = null
         setIsTyping(false)
       }
-    }, 30) // Adjust speed here (lower = faster)
-
-    return () => clearInterval(timer)
+    }, 15) // Adjust speed here (lower = faster)
   }
 
   const handleConceptExpansion = async () => {
@@ -144,13 +166,8 @@ export function NodeCard({
         auto_refine: true,
       })
 
-      // Start typewriter effect with new content if it changed
-      const newContent = response.concept.summary
-      if (newContent && newContent !== typewriterText && newContent !== node.content.text) {
-        typewriterEffect(newContent)
-      }
-
-      // Call the callback to update the mind map
+      // Call the callback to update the mind map - this will trigger the typewriter effect
+      // through the useEffect that watches for node.content.text changes
       onExpandConcept(
         conceptId,
         response.concept,

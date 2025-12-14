@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Confetti from "react-confetti"
 import { GoalResponse } from "../lib/api"
+import { processOverlayContent, TextSegment } from "../lib/text-utils"
 
 interface CongratulationsPageProps {
   goal: GoalResponse | null
@@ -11,8 +12,59 @@ interface CongratulationsPageProps {
   isDarkMode?: boolean
 }
 
+interface OverlayContentProps {
+  content: string
+  docLinks: Record<string, string>
+  isDarkMode?: boolean
+}
+
+function OverlayContent({ content, docLinks, isDarkMode }: OverlayContentProps) {
+  const segments = processOverlayContent(content, docLinks)
+  
+  return (
+    <span>
+      {segments.map((segment, index) => {
+        if (segment.type === 'link' && segment.url) {
+          return (
+            <a
+              key={index}
+              href={segment.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`underline transition-colors ${
+                isDarkMode 
+                  ? "text-blue-400 hover:text-blue-300 decoration-blue-400/30 hover:decoration-blue-300/50" 
+                  : "text-blue-600 hover:text-blue-800 decoration-blue-600/30 hover:decoration-blue-800/50"
+              }`}
+            >
+              {segment.content}
+            </a>
+          )
+        }
+        return <span key={index}>{segment.content}</span>
+      })}
+    </span>
+  )
+}
+
 export default function CongratulationsPage({ goal, initialText: _initialText, onClose, isDarkMode = false }: CongratulationsPageProps) {
   const [windowDimensions, setWindowDimensions] = useState({ width: 0, height: 0 })
+
+  // Get full content (goal + all overlays)
+  const getFullContent = () => {
+    if (!goal) return ""
+    
+    let content = goal.goal_statement
+
+    if (goal.overlays && goal.overlays.length > 0) {
+      const sortedOverlays = goal.overlays.sort((a, b) => a.depth - b.depth)
+      sortedOverlays.forEach((overlay) => {
+        content += "\n\n" + overlay.content_markdown
+      })
+    }
+
+    return content
+  }
 
   useEffect(() => {
     const updateWindowDimensions = () => {
@@ -41,7 +93,7 @@ export default function CongratulationsPage({ goal, initialText: _initialText, o
       />
       
       <div 
-        className={`relative max-w-xl mx-4 px-4 py-4 rounded-xl border-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg pointer-events-auto ${
+        className={`relative max-w-4xl max-h-[90vh] overflow-y-auto mx-4 px-4 py-4 rounded-xl border-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg pointer-events-auto ${
           isDarkMode 
             ? "border-indigo-700 bg-indigo-950/50 text-indigo-100" 
             : "border-indigo-300 bg-indigo-50/80 text-indigo-900"
@@ -71,7 +123,7 @@ export default function CongratulationsPage({ goal, initialText: _initialText, o
           </p>
         </div>
 
-        {/* Goal - Gold/Yellow Theme with Scale Pulse Animation */}
+        {/* Full Goal Content - Gold/Yellow Theme with Scale Pulse Animation */}
         {goal && (
           <div 
             className={`p-4 rounded-lg border-2 mb-6 ${
@@ -86,11 +138,30 @@ export default function CongratulationsPage({ goal, initialText: _initialText, o
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
               </svg>
-              Your Goal
+              Your Complete Learning Journey
             </div>
-            <p className={`text-sm leading-relaxed text-center ${isDarkMode ? "text-yellow-300" : "text-yellow-700"}`}>
+            <div className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? "text-yellow-300" : "text-yellow-700"}`}>
+              {/* Goal statement */}
               {goal.goal_statement}
-            </p>
+              
+              {/* All overlays with hyperlinks */}
+              {goal.overlays && goal.overlays.length > 0 && (
+                <>
+                  {goal.overlays
+                    .sort((a, b) => a.depth - b.depth)
+                    .map((overlay) => (
+                      <span key={overlay.id}>
+                        {"\n\n"}
+                        <OverlayContent 
+                          content={overlay.content_markdown}
+                          docLinks={overlay.doc_links || {}}
+                          isDarkMode={isDarkMode}
+                        />
+                      </span>
+                    ))}
+                </>
+              )}
+            </div>
           </div>
         )}
 

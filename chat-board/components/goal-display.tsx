@@ -4,11 +4,14 @@ import { useState, useEffect } from "react"
 import { GoalResponse } from "../lib/api"
 import { useTypewriter } from "../hooks/use-typewriter"
 
+
 interface GoalDisplayProps {
   goal: GoalResponse | null
   onFinish: () => void
   isDarkMode?: boolean
 }
+
+
 
 export default function GoalDisplay({
   goal,
@@ -120,13 +123,13 @@ export default function GoalDisplay({
       : goal.goal_statement
 
   return (
-    <div className="absolute top-4 right-4 z-20 max-w-sm">
+    <div className="absolute top-4 right-4 z-20 max-w-lg">
       <div
         className={`group relative px-4 py-3 rounded-xl border-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-lg select-none ${
           isDarkMode
             ? "border-indigo-700 bg-indigo-950/50 text-indigo-100"
             : "border-indigo-300 bg-indigo-50/80 text-indigo-900"
-        } ${isExpanded ? "min-h-[200px] max-h-[600px]" : "min-h-[80px]"}`}
+        } ${isExpanded ? "min-h-[200px]" : "min-h-[80px]"}`}
       >
         <div className="relative z-10 space-y-2 select-none">
           <div className="flex items-start justify-between">
@@ -169,7 +172,7 @@ export default function GoalDisplay({
           </div>
 
           <div
-            className={`transition-all duration-300 ${isExpanded ? "max-h-96 opacity-100" : "max-h-12 opacity-75"} overflow-hidden`}
+            className={`transition-all duration-300 ${isExpanded ? "max-h-[80vh] opacity-100 overflow-y-auto" : "max-h-12 opacity-75 overflow-hidden"}`}
           >
             <div className="whitespace-pre-wrap leading-relaxed select-none text-sm">
               {/* Goal statement (with typewriter if changed) */}

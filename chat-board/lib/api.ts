@@ -63,7 +63,7 @@ export interface OverlayModel {
   concept_id: string
   depth: number
   content_markdown: string
-  doc_links: string[]
+  doc_links: Record<string, string>
 }
 
 export interface FocusModel {
