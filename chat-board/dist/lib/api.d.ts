@@ -30,6 +30,8 @@ export interface ConceptGraphResponse {
         summary: string;
         first_seen_index: number;
         last_seen_index: number;
+        weight: number;
+        expansions: string[];
     }>;
     edges: Array<{
         id: string;
@@ -40,6 +42,7 @@ export interface ConceptGraphResponse {
         evidence_msg_id?: string;
         evidence_snippet?: string;
         last_referenced_index?: number;
+        weight: number;
     }>;
     meta: {
         last_processed_index: number;
@@ -52,7 +55,7 @@ export interface OverlayModel {
     concept_id: string;
     depth: number;
     content_markdown: string;
-    doc_links: string[];
+    doc_links: Record<string, string>;
 }
 export interface FocusModel {
     interest_score: number;
@@ -77,10 +80,44 @@ export interface SimpleGoalResponse {
     goal: string;
 }
 export interface ConceptExpandRequest {
-    expansion: string;
+    expansion?: string;
     weight?: number;
     strength?: number;
     auto_refine?: boolean;
+}
+export interface ConceptExpandResponse {
+    concept: {
+        id: string;
+        label: string;
+        type: string;
+        aliases: string[];
+        summary: string;
+        first_seen_index: number;
+        last_seen_index: number;
+        weight: number;
+        expansions: string[];
+    };
+    new_children: Array<{
+        id: string;
+        label: string;
+        type: string;
+        aliases: string[];
+        summary: string;
+        first_seen_index: number;
+        last_seen_index: number;
+        weight: number;
+        expansions: string[];
+    }>;
+    new_edges: Array<{
+        id: string;
+        from_concept_id: string;
+        to_concept_id: string;
+        relation: string;
+        introduced_index: number;
+        evidence_msg_id?: string;
+        evidence_snippet?: string;
+        last_referenced_index?: number;
+    }>;
 }
 export interface CreateGoalRequest {
     force?: boolean;
@@ -101,18 +138,20 @@ export declare function buildConceptGraph(sessionId: string, mode?: 'full' | 'in
 export declare function getConceptGraph(sessionId: string): Promise<ConceptGraphResponse>;
 export declare function getGoal(sessionId: string, createIfMissing?: boolean): Promise<GoalResponse>;
 export declare function createGoal(sessionId: string, request?: CreateGoalRequest): Promise<GoalResponse>;
-export declare function expandConcept(sessionId: string, conceptId: string, request: ConceptExpandRequest): Promise<unknown>;
-export declare function recordGoalInteractions(sessionId: string, request: GoalInteractionsRequest): Promise<unknown>;
+export declare function expandConcept(sessionId: string, conceptId: string, request: ConceptExpandRequest): Promise<ConceptExpandResponse>;
 export declare function initializeTicTacToeSession(prompt?: string): Promise<{
     sessionId: string;
     conceptGraph: ConceptGraphResponse;
 }>;
+export interface ConceptGraphNode extends NodeContent {
+    conceptId: string;
+    level: number;
+    parentConceptId?: string;
+    weight?: number;
+    completed?: boolean;
+}
 export declare function convertConceptGraphToNodes(conceptGraph: ConceptGraphResponse): {
-    centerNode: NodeContent & {
-        conceptId: string;
-    };
-    childNodes: Array<NodeContent & {
-        conceptId: string;
-    }>;
+    centerNode: ConceptGraphNode;
+    childNodes: Array<ConceptGraphNode>;
 };
 //# sourceMappingURL=api.d.ts.map

@@ -4,3 +4,4 @@ export { default as MindMapChat } from './components/mind-map-chat';
 export { NodeCard } from './components/node-card';
 // Export hooks
 export { useMindMap } from './hooks/use-mind-map';
+export { useTypewriter } from './hooks/use-typewriter';

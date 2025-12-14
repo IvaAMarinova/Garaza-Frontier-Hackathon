@@ -103,19 +103,6 @@ export async function expandConcept(sessionId, conceptId, request) {
     }
     return response.json();
 }
-export async function recordGoalInteractions(sessionId, request) {
-    const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/goal/interactions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-    });
-    if (!response.ok) {
-        throw new Error(`Failed to record goal interactions: ${response.statusText}`);
-    }
-    return response.json();
-}
 export async function initializeTicTacToeSession(prompt) {
     // Create a new session
     const { session_id } = await createSession();
@@ -143,41 +130,85 @@ export function convertConceptGraphToNodes(conceptGraph) {
     const { concepts, edges } = conceptGraph;
     if (concepts.length === 0) {
         return {
-            centerNode: { text: "Tic Tac Toe Game", header: "Game Concept", conceptId: "fallback" },
+            centerNode: { text: "Your future project", header: "Project Overview", conceptId: "fallback", level: 0 },
             childNodes: []
         };
     }
-    // Find the most central concept (one with most connections)
-    const connectionCounts = new Map();
-    edges.forEach(edge => {
-        connectionCounts.set(edge.from_concept_id, (connectionCounts.get(edge.from_concept_id) || 0) + 1);
-        connectionCounts.set(edge.to_concept_id, (connectionCounts.get(edge.to_concept_id) || 0) + 1);
-    });
-    // Sort concepts by connection count and relevance
-    const sortedConcepts = concepts.sort((a, b) => {
-        const aConnections = connectionCounts.get(a.id) || 0;
-        const bConnections = connectionCounts.get(b.id) || 0;
-        return bConnections - aConnections;
-    });
-    const centerConcept = sortedConcepts[0];
+    // Find the intent node (central node with id starting with "intent")
+    const intentConcept = concepts.find(concept => concept.id.startsWith("intent"));
+    if (!intentConcept) {
+        // Fallback to most connected concept if no intent node found
+        const connectionCounts = new Map();
+        edges.forEach(edge => {
+            connectionCounts.set(edge.from_concept_id, (connectionCounts.get(edge.from_concept_id) || 0) + 1);
+            connectionCounts.set(edge.to_concept_id, (connectionCounts.get(edge.to_concept_id) || 0) + 1);
+        });
+        const sortedConcepts = concepts.sort((a, b) => {
+            const aConnections = connectionCounts.get(a.id) || 0;
+            const bConnections = connectionCounts.get(b.id) || 0;
+            return bConnections - aConnections;
+        });
+        const centerConcept = sortedConcepts[0];
+        const centerNode = {
+            text: centerConcept.summary,
+            header: centerConcept.label,
+            conceptId: centerConcept.id,
+            level: 0,
+            weight: centerConcept.weight,
+            completed: centerConcept.weight >= 10
+        };
+        const childNodes = concepts
+            .filter(concept => concept.id !== centerConcept.id)
+            .slice(0, 8)
+            .map(concept => ({
+            text: concept.summary,
+            header: concept.label,
+            conceptId: concept.id,
+            level: 1,
+            weight: concept.weight,
+            completed: concept.weight >= 10
+        }));
+        return { centerNode, childNodes };
+    }
     const centerNode = {
-        text: centerConcept.summary,
-        header: centerConcept.label,
-        conceptId: centerConcept.id
+        text: intentConcept.summary,
+        header: intentConcept.label,
+        conceptId: intentConcept.id,
+        level: 0,
+        weight: intentConcept.weight,
+        completed: intentConcept.weight >= 10
     };
-    // Simple approach: show all other concepts as children of the center
-    // This works better for complex interconnected graphs
-    const allChildIds = concepts
-        .filter(concept => concept.id !== centerConcept.id)
-        .map(concept => concept.id);
-    const childNodes = allChildIds
-        .map(id => concepts.find(c => c.id === id))
-        .filter(Boolean)
-        .slice(0, 8) // Show up to 8 connected nodes
-        .map(concept => ({
-        text: concept.summary,
-        header: concept.label,
-        conceptId: concept.id
-    }));
+    const parentChildMap = new Map();
+    edges.forEach(edge => {
+        parentChildMap.set(edge.to_concept_id, edge.from_concept_id);
+    });
+    const resultNodes = [];
+    function addNodeAndChildren(conceptId, level, parentConceptId) {
+        const concept = concepts.find(c => c.id === conceptId);
+        if (!concept)
+            return;
+        if (conceptId !== intentConcept.id) {
+            resultNodes.push({
+                text: concept.summary,
+                header: concept.label,
+                conceptId: concept.id,
+                level,
+                parentConceptId,
+                weight: concept.weight,
+                completed: concept.weight >= 10
+            });
+        }
+        const children = [];
+        parentChildMap.forEach((parentId, childId) => {
+            if (parentId === conceptId) {
+                children.push(childId);
+            }
+        });
+        children.forEach(childId => {
+            addNodeAndChildren(childId, level + 1, conceptId);
+        });
+    }
+    addNodeAndChildren(intentConcept.id, 0);
+    const childNodes = resultNodes.slice(0, 8);
     return { centerNode, childNodes };
 }
